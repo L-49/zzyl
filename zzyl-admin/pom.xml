@@ -25,10 +25,10 @@
         </dependency>
 
         <!-- spring-doc -->
-        <dependency>
+       <!-- <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-        </dependency>
+        </dependency>-->
 
          <!-- Mysql驱动包 -->
         <dependency>
@@ -52,6 +52,11 @@
         <dependency>
             <groupId>com.zzyl</groupId>
             <artifactId>zzyl-generator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zzyl</groupId>
+            <artifactId>zzyl-nursing-platform</artifactId>
         </dependency>
 
     </dependencies>
