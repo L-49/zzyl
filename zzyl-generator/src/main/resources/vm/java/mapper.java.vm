@@ -1,27 +1,59 @@
+## =============================================================================
+## mapper.java.vm —— 代码生成器「Mapper 接口（持久层）」模板【MyBatis-Plus 版】
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 Java 源码。它会被渲染成一个
+##   MyBatis-Plus 的 Mapper 接口 .java 文件：${...} 与 $xxx 会被引擎替换成真实值，
+##   #xxx 是指令。模板中一切“说明文字”都必须写成 Velocity 注释，切勿用 // 或 /* */。
+##
+## 【本次改造：MyBatis -> MyBatis-Plus】
+##   1. 接口继承 com.baomidou.mybatisplus.core.mapper.BaseMapper<实体>；
+##   2. 增加 @Mapper 注解（也可由启动类 @MapperScan 统一扫描）；
+##   3. 主键查询 getById、按主键删除 deleteById、批量删除 deleteByIds 等
+##      通用单表 CRUD 由 BaseMapper 直接提供，故模板不再生成这些方法；
+##   4. 仅保留自定义 SQL：列表查询 selectXxxList、新增 insertXxx、修改 updateXxx
+##      （由 mapper.xml 提供实现）；主子表额外保留主表删除与子表批量方法。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值。
+##                        推荐用 ${} 包裹，避免与紧随其后的字符粘连（更安全）。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   空白规则：当指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行
+##             一起删除，所以生成的 Java 里不会出现多余空行。
+## =============================================================================
+## ${packageName}：生成器传入的包名，与固定后缀 ".mapper" 拼接成包声明。
 package ${packageName}.mapper;
 
-import java.util.List;
+## 【改造核心】引入 MyBatis-Plus 通用 Mapper 基类，继承它即可获得单表 CRUD。
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import ${packageName}.domain.${ClassName};
+## #if/#end 条件分支：仅当为主子表($table.sub 为真)时才额外导入子表实体。
 #if($table.sub)
 import ${packageName}.domain.${subClassName};
 #end
+import org.apache.ibatis.annotations.Mapper;
 
+import java.util.List;
+
+## 类注释：${functionName}=功能名，${author}/${datetime}=生成信息。
 /**
  * ${functionName}Mapper接口
  * 
  * @author ${author}
  * @date ${datetime}
  */
-public interface ${ClassName}Mapper 
+## @Mapper：标记为 MyBatis 映射接口，交由 Spring 扫描注册（等价于在启动类 @MapperScan）。
+## extends BaseMapper<${ClassName}>：关键改造点。继承后自动拥有
+##   getById / insert / updateById / deleteById / deleteByIds 等通用单表方法。
+@Mapper
+## ${ClassName}=类名(大驼峰)，${className}=小驼峰实例名。
+public interface ${ClassName}Mapper extends BaseMapper<${ClassName}>
 {
-    /**
-     * 查询${functionName}
-     * 
-     * @param ${pkColumn.javaField} ${functionName}主键
-     * @return ${functionName}
-     */
-    public ${ClassName} select${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
-
     /**
      * 查询${functionName}列表
      * 
@@ -45,14 +77,11 @@ public interface ${ClassName}Mapper
      * @return 结果
      */
     public int update${ClassName}(${ClassName} ${className});
-
-    /**
-     * 删除${functionName}
-     * 
-     * @param ${pkColumn.javaField} ${functionName}主键
-     * @return 结果
-     */
-    public int delete${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
+## #if/#end：主子表时才追加主表批量删除与子表相关方法（自定义 SQL，由 mapper.xml 实现）。
+## $pkColumn.capJavaField=主键属性名(首字母大写)，$pkColumn.javaField=主键属性名(小驼峰)，
+## ${pkColumn.javaField}s 表示主键属性名后加 s 的复数（如 id -> ids）。
+## $subTableFkClassName=子表外键属性名(首字母大写)，$subTable.functionName=子表功能名。
+#if($table.sub)
 
     /**
      * 批量删除${functionName}
@@ -61,7 +90,6 @@ public interface ${ClassName}Mapper
      * @return 结果
      */
     public int delete${ClassName}By${pkColumn.capJavaField}s(${pkColumn.javaType}[] ${pkColumn.javaField}s);
-#if($table.sub)
 
     /**
      * 批量删除${subTable.functionName}

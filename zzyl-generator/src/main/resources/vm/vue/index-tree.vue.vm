@@ -1,16 +1,58 @@
+## =============================================================================
+## index-tree.vue.vm —— 代码生成器「树表页」模板（Vue2 + Element UI）
+## -----------------------------------------------------------------------------
+## 【生成物】渲染后得到一个 .vue 单文件组件：树形表格列表页（查询表单 + 展开/
+##   折叠按钮 + el-table 树表 + 新增/修改对话框 + treeselect 上级节点选择）。
+##   本文件是 Velocity 模板，不是 Vue 源码：#xxx 是指令，${...}/$xxx 是引用，
+##   渲染时被替换成真实值。因此一切“说明文字”都必须写成 Velocity 注释。
+## -----------------------------------------------------------------------------
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起删除。必须独占
+##                整行——若写在有输出内容的行尾，会把该行换行吃掉，导致生成
+##                内容被拼接。本文件所有 ## 注释均独占整行。
+##   #* ... *#    多行(块)注释：可跨行，遇第一个 *# 结束（不嵌套）。
+## -----------------------------------------------------------------------------
+## 【本模板用到的 Velocity 语法】
+##   ${name} / $name        引用：输出变量、属性或方法返回值。推荐 ${} 包裹，
+##                          以免与紧随其后的字符粘连（如 ${businessName}List）。
+##   $obj.prop              属性访问（等价于调用 getProp()）。
+##   $obj.method(...)       方法调用，返回值参与输出（如 substring/indexOf/size）。
+##   #set($x = 表达式)      给引用赋值，本身不产生输出。
+##   #foreach($i in $list) ... #end         遍历循环；可用 #break 提前跳出。
+##   #if(...) ... #elseif(...) ... #else ... #end   条件分支。
+##   $foreach.index         当前轮次下标(从 0 开始)；$foreach.count 从 1 开始；
+##                          $foreach.hasNext 表示是否还有下一项。
+##   #[[ ... ]]#            字面块：块内内容不被 Velocity 解析，原样输出，用于
+##                          表示 Vue/JS 里的 $refs、$modal 等。
+##   空白规则：指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行一起
+##             删除，生成结果中不会留下多余空行；而写在行内的 #if ... #end（如
+##             拼接逗号处）不可在其行尾追加 ## 注释。
+## -----------------------------------------------------------------------------
+## 【与 Vue/JS 语法并存，务必区分】
+##   {{ ... }}         是 Vue 插值，与 Velocity 无关，原样保留。
+##   反引号内 ${...}   是 JS 模板字符串语法，须原样保留。
+##   CSS 的 #fff、选择器中的 # 同理，均与 Velocity 无关。
+## =============================================================================
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryForm" size="small" :inline="true" v-show="showSearch" label-width="68px">
+## ↓ 查询条件区：#foreach ... #end 遍历列集合 $columns，$column 为当前列对象。
 #foreach($column in $columns)
+## $column.query 为布尔属性，Velocity 自动调用其 getter；为真才生成该列查询项。
 #if($column.query)
+## #set：局部变量赋值（无输出）。下面预处理字典类型与首字母大写的字段名。
+## $column.javaField.substring(0,1).toUpperCase() + substring(1) 为方法调用拼接。
 #set($dictType=$column.dictType)
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+## 列注释常形如「名称（说明）」：indexOf("（") 定位中文左括号下标，未找到为 -1。
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
+## 据此截取括号前的纯名称存入 $comment（#if/#else 分支，后面 #end 收尾）。
 #if($parentheseIndex != -1)
 #set($comment=$column.columnComment.substring(0, $parentheseIndex))
 #else
 #set($comment=$column.columnComment)
 #end
+## 依列的 htmlType（控件类型）选择查询控件；#elseif 递进分支，最终统一 #end。
 #if($column.htmlType == "input")
       <el-form-item label="${comment}" prop="${column.javaField}">
         <el-input
@@ -46,6 +88,7 @@
           placeholder="选择${comment}">
         </el-date-picker>
       </el-form-item>
+## BETWEEN 查询：生成日期范围选择器，绑定到 daterange${AttrName}。
 #elseif($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
       <el-form-item label="${comment}">
         <el-date-picker
@@ -58,6 +101,7 @@
           end-placeholder="结束日期"
         ></el-date-picker>
       </el-form-item>
+## 此处三个 #end 依次闭合：htmlType 的 #if、#if($column.query)、#foreach($columns)。
 #end
 #end
 #end
@@ -67,6 +111,8 @@
       </el-form-item>
     </el-form>
 
+## ${permissionPrefix} 为引用，输出权限前缀，用于拼 v-hasPermi 权限标识。
+## 注意：v-hasPermi="['...']" 整体是 Vue 指令表达式，与 Velocity 无关。
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
@@ -98,6 +144,7 @@
       :default-expand-all="isExpandAll"
       :tree-props="{children: 'children', hasChildren: 'hasChildren'}"
     >
+## 树表列定义：再次遍历 $columns。下面 #set 同查询区：取字段名与括号前的纯注释。
 #foreach($column in $columns)
 #set($javaField=$column.javaField)
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
@@ -106,6 +153,7 @@
 #else
 #set($comment=$column.columnComment)
 #end
+## 依 $column.pk、$column.list、htmlType 选择列渲染方式；主键列在此不展示。
 #if($column.pk)
 #elseif($column.list && $column.htmlType == "datetime")
       <el-table-column label="${comment}" align="center" prop="${javaField}" width="180">
@@ -122,6 +170,7 @@
 #elseif($column.list && "" != $column.dictType)
       <el-table-column label="${comment}" align="center" prop="${javaField}">
         <template slot-scope="scope">
+## 字典(checkbox)列需按逗号拆成数组传给 dict-tag，其余直接传字典值。
 #if($column.htmlType == "checkbox")
           <dict-tag :options="dict.type.${column.dictType}" :value="scope.row.${javaField} ? scope.row.${javaField}.split(',') : []"/>
 #else
@@ -130,15 +179,19 @@
         </template>
       </el-table-column>
 #elseif($column.list && "" != $javaField)
+## $foreach.index 为当前轮次下标(从 0 开始)：第 2 列(索引 1)不加居中对齐。
+## 行内 #if/#else/#end 用于在两种 el-table-column 写法间切换。
 #if(${foreach.index} == 1)
       <el-table-column label="${comment}" prop="${javaField}" />
 #else
       <el-table-column label="${comment}" align="center" prop="${javaField}" />
 #end
 #end
+## 闭合 #foreach($columns)，结束表格列生成。
 #end
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template slot-scope="scope">
+## $genView 为生成开关；为真时多出一个「详情」按钮。
 #if($genView)
           <el-button
             size="mini"
@@ -173,11 +226,13 @@
       </el-table-column>
     </el-table>
 
+## 生成详情页时引入详情抽屉：标签名由 ${businessName} 引用拼出(如 user-view-drawer)。
 #if($genView)
     <!-- ${functionName}详情抽屉 -->
     <${businessName}-view-drawer ref="${businessName}ViewRef" />
 #end
     <!-- 添加或修改${functionName}对话框 -->
+## 依表配置的表单列数 $table.formColNum 选择对话框宽度：各分支 #set 不同值。
 #if($table.formColNum == 2)
 #set($dialogWidth = "800px")
 #elseif($table.formColNum == 3)
@@ -188,9 +243,12 @@
     <el-dialog :title="title" :visible.sync="open" width="${dialogWidth}" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-row>
+## 对话框表单：遍历 $columns 生成录入项；#set($field=...) 取当前列字段名。
 #foreach($column in $columns)
 #set($field=$column.javaField)
+## 仅「可插入且非主键」列生成表单项；! 为逻辑取反。
 #if($column.insert && !$column.pk)
+## 排除父类公共字段，避免重复录入。
 #if(($column.usableColumn) || (!$column.superColumn))
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
 #if($parentheseIndex != -1)
@@ -199,6 +257,8 @@
 #set($comment=$column.columnComment)
 #end
 #set($dictType=$column.dictType)
+## 树表专有：「上级节点」列改用 treeselect 选择。
+## $treeParentCode 为上级字段名引用；$column.javaField == $treeParentCode 判断当前列。
 #if("" != $treeParentCode && $column.javaField == $treeParentCode)
           <el-col :span="${colSpan}">
             <el-form-item label="${comment}" prop="${treeParentCode}">
@@ -237,6 +297,7 @@
                   v-for="dict in dict.type.${dictType}"
                   :key="dict.value"
                   :label="dict.label"
+## 字典值为整型(Integer/Long)时用 parseInt 转换，否则保持字符串。
 #if($column.javaType == "Integer" || $column.javaType == "Long")
                   :value="parseInt(dict.value)"
 #else
@@ -282,6 +343,7 @@
                 <el-radio
                   v-for="dict in dict.type.${dictType}"
                   :key="dict.value"
+## radio 同理：整型字典值需 parseInt。
 #if($column.javaType == "Integer" || $column.javaType == "Long")
                   :label="parseInt(dict.value)"
 #else
@@ -316,6 +378,8 @@
               <el-input v-model="form.${field}" type="textarea" placeholder="请输入内容" />
             </el-form-item>
           </el-col>
+## 连续 #end 依次闭合：htmlType 的 #if、usableColumn 判断、insert/pk 判断、
+## 以及 #foreach($columns)。
 #end
 #end
 #end
@@ -331,7 +395,10 @@
 </template>
 
 <script>
+## 以下是 <script> 段：${BusinessName} 类名(大驼峰)、${businessName} 业务名(小驼峰)、
+## ${moduleName} 模块名，用于拼接 API 请求路径。
 import { list${BusinessName}, get${BusinessName}, del${BusinessName}, add${BusinessName}, update${BusinessName} } from "@/api/${moduleName}/${businessName}"
+## 仅在生成详情页时导入详情抽屉组件。
 #if($genView)
 import ${BusinessName}ViewDrawer from "./view"
 #end
@@ -340,10 +407,12 @@ import "@riophae/vue-treeselect/dist/vue-treeselect.css"
 
 export default {
   name: "${BusinessName}",
+## ${dicts}(引用)为字典配置代码文本，非空时才输出 dicts 项；'' 为字符串常量。
 #if(${dicts} != '')
   dicts: [${dicts}],
 #end
   components: {
+## 仅在生成详情页时注册详情抽屉组件；Treeselect 为固定注册。
 #if($genView)
     ${BusinessName}ViewDrawer,
 #end
@@ -367,6 +436,7 @@ export default {
       isExpandAll: true,
       // 重新渲染表格状态
       refreshTable: true,
+## 为 BETWEEN 查询生成日期范围绑定变量；$AttrName 由 #set 拼接得到。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
@@ -376,8 +446,12 @@ export default {
 #end
       // 查询参数
       queryParams: {
+## 组装查询参数对象：遍历查询列，输出查询字段。
 #foreach ($column in $columns)
 #if($column.query)
+## $foreach.count 为当前轮次(从 1 开始)，$columns.size() 为列总数。
+## 内联 #if($foreach.count != $columns.size()),#end 仅在非末项时补逗号，避免尾逗号。
+## 注意：该 #if/#end 位于同一行内，其行尾严禁追加 ## 注释（会吞掉换行）。
         $column.javaField: null#if($foreach.count != $columns.size()),#end
 #end
 #end
@@ -386,6 +460,7 @@ export default {
       form: {},
       // 表单校验
       rules: {
+## 表单校验：仅为必填列($column.required)生成 rules 项。
 #foreach ($column in $columns)
 #if($column.required)
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
@@ -395,6 +470,7 @@ export default {
 #set($comment=$column.columnComment)
 #end
         $column.javaField: [
+## 行内三元：#if/#else 在 "change"/"blur" 间选择 trigger 值（同样不可行尾加 ## ）。
           { required: true, message: "$comment不能为空", trigger: #if($column.htmlType == "select" || $column.htmlType == "radio")"change"#else"blur"#end }
         ]#if($foreach.count != $columns.size()),#end
 #end
@@ -409,12 +485,15 @@ export default {
     /** 查询${functionName}列表 */
     getList() {
       this.loading = true
+## 遍历列寻找 BETWEEN 查询列；找到即初始化 params 对象并用 #break 跳出 #foreach。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
       this.queryParams.params = {}
+## #break：提前结束当前 #foreach（params 只需初始化一次）。
 #break
 #end
 #end
+## 再次遍历，把日期范围数组拆成 begin/end 两个查询参数。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
@@ -424,7 +503,9 @@ export default {
       }
 #end
 #end
+## ${BusinessName} 为引用，拼出接口方法名（如 listUser）。
       list${BusinessName}(this.queryParams).then(response => {
+## ${treeCode}/${treeParentCode} 为树表字段名引用，handleTree 依此把平铺数据转树。
         this.${businessName}List = this.handleTree(response.data, "${treeCode}", "${treeParentCode}")
         this.loading = false
       })
@@ -457,6 +538,7 @@ export default {
     // 表单重置
     reset() {
       this.form = {
+## 表单重置：遍历列，checkbox 列置空数组 []，其余置 null。
 #foreach ($column in $columns)
 #if($column.htmlType == "checkbox")
         $column.javaField: []#if($foreach.count != $columns.size()),#end
@@ -473,6 +555,7 @@ export default {
     },
     /** 重置按钮操作 */
     resetQuery() {
+## 重置查询条件：仅处理 BETWEEN 日期范围变量。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
@@ -502,9 +585,11 @@ export default {
         this.refreshTable = true
       })
     },
+## 详情按钮操作，仅在生成详情页时输出。
 #if($genView)
     /** 详情按钮操作 */
     handleViewData(row) {
+## #[[$]]# 为字面块：原样输出字符 $，使 this.#[[$]]#refs 渲染为 this.$refs。
       this.#[[$]]#refs["${businessName}ViewRef"].open(row.${pkColumn.javaField})
     },
 #end
@@ -517,6 +602,7 @@ export default {
       }
       get${BusinessName}(row.${pkColumn.javaField}).then(response => {
         this.form = response.data
+## 修改回显：checkbox 列需把逗号串拆成数组。
 #foreach ($column in $columns)
 #if($column.htmlType == "checkbox")
         this.form.$column.javaField = this.form.${column.javaField}.split(",")
@@ -528,8 +614,10 @@ export default {
     },
     /** 提交按钮 */
     submitForm() {
+## #[[$]]# 字面块：输出 this.$refs，避免 $refs 被当作引用解析。
       this.#[[$]]#refs["form"].validate(valid => {
         if (valid) {
+## 提交前把 checkbox 列数组拼回逗号串。
 #foreach ($column in $columns)
 #if($column.htmlType == "checkbox")
           this.form.$column.javaField = this.form.${column.javaField}.join(",")
@@ -553,6 +641,7 @@ export default {
     },
     /** 删除按钮操作 */
     handleDelete(row) {
+## #[[$modal]]# 字面块：原样输出 $modal（即 this.$modal）。
       this.#[[$modal]]#.confirm('是否确认删除${functionName}编号为"' + row.${pkColumn.javaField} + '"的数据项？').then(function() {
         return del${BusinessName}(row.${pkColumn.javaField})
       }).then(() => {

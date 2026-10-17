@@ -1,12 +1,14 @@
 package com.zzyl.nursing.service.impl;
 
-import java.util.List;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zzyl.common.utils.DateUtils;
+import com.zzyl.nursing.domain.NursingProject;
+import com.zzyl.nursing.mapper.NursingProjectMapper;
+import com.zzyl.nursing.service.INursingProjectService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import com.zzyl.nursing.mapper.NursingProjectMapper;
-import com.zzyl.nursing.domain.NursingProject;
-import com.zzyl.nursing.service.INursingProjectService;
+
+import java.util.List;
 
 /**
  * 护理项目Service业务层处理
@@ -15,22 +17,10 @@ import com.zzyl.nursing.service.INursingProjectService;
  * @date 2026-10-14
  */
 @Service
-public class NursingProjectServiceImpl implements INursingProjectService 
+public class NursingProjectServiceImpl extends ServiceImpl<NursingProjectMapper,NursingProject> implements INursingProjectService
 {
     @Autowired
     private NursingProjectMapper nursingProjectMapper;
-
-    /**
-     * 查询护理项目
-     * 
-     * @param id 护理项目主键
-     * @return 护理项目
-     */
-    @Override
-    public NursingProject selectNursingProjectById(Long id)
-    {
-        return nursingProjectMapper.selectNursingProjectById(id);
-    }
 
     /**
      * 查询护理项目列表
@@ -68,29 +58,5 @@ public class NursingProjectServiceImpl implements INursingProjectService
     {
         nursingProject.setUpdateTime(DateUtils.getNowDate());
         return nursingProjectMapper.updateNursingProject(nursingProject);
-    }
-
-    /**
-     * 批量删除护理项目
-     * 
-     * @param ids 需要删除的护理项目主键
-     * @return 结果
-     */
-    @Override
-    public int deleteNursingProjectByIds(Long[] ids)
-    {
-        return nursingProjectMapper.deleteNursingProjectByIds(ids);
-    }
-
-    /**
-     * 删除护理项目信息
-     * 
-     * @param id 护理项目主键
-     * @return 结果
-     */
-    @Override
-    public int deleteNursingProjectById(Long id)
-    {
-        return nursingProjectMapper.deleteNursingProjectById(id);
     }
 }

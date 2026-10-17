@@ -20,13 +20,16 @@ import com.zzyl.nursing.domain.NursingPlan;
 import com.zzyl.nursing.service.INursingPlanService;
 import com.zzyl.common.utils.poi.ExcelUtil;
 import com.zzyl.common.core.page.TableDataInfo;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * 护理计划Controller
- * 
+ *
  * @author lsj
  * @date 2026-10-14
  */
+@Tag(name = "护理计划管理")
 @RestController
 @RequestMapping("/nursing/plan")
 public class NursingPlanController extends BaseController
@@ -37,6 +40,7 @@ public class NursingPlanController extends BaseController
     /**
      * 查询护理计划列表
      */
+    @Operation(summary = "查询护理计划列表")
     @PreAuthorize("@ss.hasPermi('nursing:plan:list')")
     @GetMapping("/list")
     public TableDataInfo list(NursingPlan nursingPlan)
@@ -49,6 +53,7 @@ public class NursingPlanController extends BaseController
     /**
      * 导出护理计划列表
      */
+    @Operation(summary = "导出护理计划列表")
     @PreAuthorize("@ss.hasPermi('nursing:plan:export')")
     @Log(title = "护理计划", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
@@ -62,6 +67,7 @@ public class NursingPlanController extends BaseController
     /**
      * 获取护理计划详细信息
      */
+    @Operation(summary = "获取护理计划详情")
     @PreAuthorize("@ss.hasPermi('nursing:plan:query')")
     @GetMapping(value = "/{id}")
     public AjaxResult getInfo(@PathVariable("id") Long id)
@@ -72,6 +78,7 @@ public class NursingPlanController extends BaseController
     /**
      * 新增护理计划
      */
+    @Operation(summary = "新增护理计划")
     @PreAuthorize("@ss.hasPermi('nursing:plan:add')")
     @Log(title = "护理计划", businessType = BusinessType.INSERT)
     @PostMapping
@@ -83,6 +90,7 @@ public class NursingPlanController extends BaseController
     /**
      * 修改护理计划
      */
+    @Operation(summary = "修改护理计划")
     @PreAuthorize("@ss.hasPermi('nursing:plan:edit')")
     @Log(title = "护理计划", businessType = BusinessType.UPDATE)
     @PutMapping
@@ -94,6 +102,7 @@ public class NursingPlanController extends BaseController
     /**
      * 删除护理计划
      */
+    @Operation(summary = "删除护理计划")
     @PreAuthorize("@ss.hasPermi('nursing:plan:remove')")
     @Log(title = "护理计划", businessType = BusinessType.DELETE)
 	@DeleteMapping("/{ids}")

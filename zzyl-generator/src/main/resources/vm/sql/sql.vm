@@ -1,3 +1,23 @@
+## =============================================================================
+## sql.vm —— 代码生成器「菜单 SQL 脚本」模板
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是真正的 SQL 脚本。它会被渲染成一段用于
+##   初始化菜单/按钮的 SQL 语句：${...} 会被引擎替换成真实值，#xxx 才是指令。
+##   模板中一切“说明文字”都必须写成 Velocity 注释，切勿使用 // 或 /* */ 或 -- 注释。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name}      引用(Reference)：输出变量；本文件全部使用 ${} 形式，避免与相邻字符粘连。
+##   本文件不含 #set/#foreach/#if 等指令，仅做变量替换，因此无需 #end。
+##   注意：SQL 里出现的 '#'（如 icon 字段值）是字面字符，不是指令，会原样输出。
+##   空白规则：指令独占一行时会连同换行一起被删除（本文件无指令行）。
+## =============================================================================
+## ${functionName}=功能名，${parentMenuId}=父菜单 ID，${businessName}=业务名，
+## ${moduleName}=模块名（用于前端组件路径），${permissionPrefix}=权限前缀。
 -- 菜单 SQL
 insert into sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
 values('${functionName}', '${parentMenuId}', '1', '${businessName}', '${moduleName}/${businessName}/index', 1, 0, 'C', '0', '0', '${permissionPrefix}:list', '#', 'admin', sysdate(), '', null, '${functionName}菜单');

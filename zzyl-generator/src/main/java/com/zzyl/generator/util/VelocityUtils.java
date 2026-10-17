@@ -1,10 +1,5 @@
 package com.zzyl.generator.util;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import org.apache.velocity.VelocityContext;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.zzyl.common.constant.GenConstants;
@@ -12,6 +7,12 @@ import com.zzyl.common.utils.DateUtils;
 import com.zzyl.common.utils.StringUtils;
 import com.zzyl.generator.domain.GenTable;
 import com.zzyl.generator.domain.GenTableColumn;
+import org.apache.velocity.VelocityContext;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
  * 模板处理工具类
@@ -308,6 +309,13 @@ public class VelocityUtils
             if (!column.isSuperColumn() && GenConstants.TYPE_DATE.equals(column.getJavaType()))
             {
                 importList.add("java.util.Date");
+                importList.add("com.fasterxml.jackson.annotation.JsonFormat");
+            }
+            // 如果字段类型在前端选择的是LocalDateTime，则导入对应的包
+            if (!column.isSuperColumn() && GenConstants.TYPE_LOCAL_DATE_TIME.equals(column.getJavaType()))
+            {
+                importList.add("java.time.LocalDateTime");
+                // 导入这个是为了格式化日期
                 importList.add("com.fasterxml.jackson.annotation.JsonFormat");
             }
             else if (!column.isSuperColumn() && GenConstants.TYPE_BIGDECIMAL.equals(column.getJavaType()))

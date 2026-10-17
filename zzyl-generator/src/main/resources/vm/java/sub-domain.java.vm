@@ -1,5 +1,31 @@
+## =============================================================================
+## sub-domain.java.vm —— 代码生成器「子表实体类(sub domain)」模板
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 Java 源码。主子表(code 主表 + 子表)场景下
+##   它会被渲染成一个子表实体 .java 文件：${...} 与 $xxx 会被引擎替换成真实值，
+##   #xxx 是指令。模板中一切“说明文字”都必须写成 Velocity 注释，切勿用 // 或 /* */。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值。
+##                        推荐用 ${} 包裹，避免与紧随其后的字符粘连（更安全）。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   $obj.method(参数)    方法调用，返回值参与输出。
+##   #set($x = 表达式)    定义或给引用赋值（本身不产生任何输出）；字符串值需用引号包裹。
+##   #foreach($x in $list) ... #end        遍历循环。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   空白规则：当指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行
+##             一起删除，所以生成的 Java 里不会出现多余空行。
+## =============================================================================
+## ${packageName}：生成器传入的包名，与固定后缀 ".domain" 拼接成包声明。
 package ${packageName}.domain;
 
+## #foreach ... #end：遍历子表需要导入的包名集合 $subImportList；
+## $import 为循环变量，${import} 引用并输出成一条 import 语句。
 #foreach ($import in $subImportList)
 import ${import};
 #end
@@ -8,26 +34,36 @@ import org.apache.commons.lang3.builder.ToStringStyle;
 import com.zzyl.common.annotation.Excel;
 import com.zzyl.common.core.domain.BaseEntity;
 
+## 类注释：${subTable.functionName}=子表功能名，${subTableName}=子表名。
 /**
  * ${subTable.functionName}对象 ${subTableName}
  * 
  * @author ${author}
  * @date ${datetime}
  */
+## ${subClassName}=子表类名(大驼峰)，固定继承 BaseEntity。
 public class ${subClassName} extends BaseEntity
 {
     private static final long serialVersionUID = 1L;
 
+## ===== 生成子表成员字段 =====
+## 遍历子表所有列：$subTable.columns 为子表列集合，$column 为当前列对象。
+## $table.isSuperColumn($column.javaField)：判断该字段是否属于父类公共字段，是则跳过。
 #foreach ($column in $subTable.columns)
 #if(!$table.isSuperColumn($column.javaField))
     /** $column.columnComment */
+## $column.list=该列是否在列表展示；为 true 时才生成 @Excel 注解。
 #if($column.list)
+## #set + 方法调用：indexOf("（") 返回中文左括号的下标，未找到返回 -1；
+## 下面把 $comment 定位为括号之前的名称，便于后续拼接。
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
 #if($parentheseIndex != -1)
 #set($comment=$column.columnComment.substring(0, $parentheseIndex))
 #else
 #set($comment=$column.columnComment)
 #end
+## 依据 $parentheseIndex 选择 @Excel 写法：含括号→追加 readConverterExp()（返回枚举映射串）；
+## 日期列→额外输出 @JsonFormat 与日期格式；其它→只输出字段名称。
 #if($parentheseIndex != -1)
     @Excel(name = "${comment}", readConverterExp = "$column.readConverterExp()")
 #elseif($column.javaType == 'Date')
@@ -37,12 +73,17 @@ public class ${subClassName} extends BaseEntity
     @Excel(name = "${comment}")
 #end
 #end
+## $column.javaType=Java 类型，$column.javaField=属性名（小驼峰）。
     private $column.javaType $column.javaField;
 
 #end
 #end
+## ===== 生成 getter / setter =====
+## 再次遍历子表列，为每个字段生成一对访问器方法。
 #foreach ($column in $subTable.columns)
 #if(!$table.isSuperColumn($column.javaField))
+## 计算用于方法名的属性名（首字母大写版本）：若字段长度>2 且第 2 个字符为大写字母，
+## 判定已是驼峰命名，直接用原名；否则取首字母 toUpperCase() 后拼接剩余部分。
 #if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
 #set($AttrName=$column.javaField)
 #else
@@ -63,6 +104,7 @@ public class ${subClassName} extends BaseEntity
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
+## toString() 中同样循环拼接每个字段的 .append(...)；get${AttrName}() 与上方 #set 一致。
 #foreach ($column in $subTable.columns)
 #if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
 #set($AttrName=$column.javaField)

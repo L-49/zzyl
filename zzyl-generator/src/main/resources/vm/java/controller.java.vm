@@ -1,3 +1,30 @@
+## =============================================================================
+## controller.java.vm —— 代码生成器「Controller（控制层）」模板【MyBatis-Plus 版】
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 Java 源码。它会被渲染成一个 Controller
+##   .java 文件：${...} 与 $xxx 会被引擎替换成真实值，#xxx 是指令。因此模板中一切
+##   “说明文字”都必须写成 Velocity 注释，切勿使用 // 或 /* */，否则会被原样输出。
+##
+## 【本次改造：MyBatis -> MyBatis-Plus】
+##   1. 响应体由 AjaxResult 统一替换为 com.zzyl.common.core.domain.R（R.ok(...)）；
+##   2. 分页返回 TableDataInfo<实体>（TableDataInfo 已支持泛型）；
+##   3. 详情查询改为调用 MyBatis-Plus 的 getById，删除改为 removeByIds(List.of(ids))；
+##   4. 补充 Swagger(OpenAPI3) 注解 @Tag / @Operation，便于 Knife4j 生成中文分组。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值。
+##                        推荐用 ${} 包裹，避免与紧随其后的字符粘连（更安全）。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   空白规则：当指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行
+##             一起删除，所以生成的 Java 里不会出现多余空行。
+## =============================================================================
+## ${packageName}：生成器传入的包名，与固定后缀 ".controller" 拼接成包声明。
 package ${packageName}.controller;
 
 import java.util.List;
@@ -12,24 +39,36 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+## Swagger(OpenAPI3) 注解：用于 Knife4j / Swagger UI 生成中文分组与接口名。
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.zzyl.common.annotation.Log;
 import com.zzyl.common.core.controller.BaseController;
-import com.zzyl.common.core.domain.AjaxResult;
+## 【改造】响应体统一使用 R（替代 AjaxResult）。
+import com.zzyl.common.core.domain.R;
 import com.zzyl.common.enums.BusinessType;
 import ${packageName}.domain.${ClassName};
 import ${packageName}.service.I${ClassName}Service;
 import com.zzyl.common.utils.poi.ExcelUtil;
+## 条件分支：#if / #elseif / #end。依据表类型动态选择导包：
+## $table.crud=普通单表，$table.sub=主子表，$table.tree=树表；
+## Velocity 会自动调用布尔属性的 getter（如 isCrud()/isSub()/isTree()）取值。
 #if($table.crud || $table.sub)
 import com.zzyl.common.core.page.TableDataInfo;
 #elseif($table.tree)
 #end
 
+## 类注释：${functionName}=功能名，${author}/${datetime}=生成信息。
 /**
  * ${functionName}Controller
  * 
  * @author ${author}
  * @date ${datetime}
  */
+## ${ClassName}=类名(大驼峰)，${className}=类名(小驼峰)，二者由生成器据表名计算。
+## ${moduleName}/${businessName} 组成请求路径，${permissionPrefix} 为权限前缀。
+## @Tag(name=...) 即 Knife4j 左侧的中文分组名（如“护理项目管理”）。
+@Tag(name = "${functionName}管理")
 @RestController
 @RequestMapping("/${moduleName}/${businessName}")
 public class ${ClassName}Controller extends BaseController
@@ -40,26 +79,30 @@ public class ${ClassName}Controller extends BaseController
     /**
      * 查询${functionName}列表
      */
+    @Operation(summary = "查询${functionName}列表")
     @PreAuthorize("@ss.hasPermi('${permissionPrefix}:list')")
     @GetMapping("/list")
+## #if/#elseif/#end 分支：普通表/主子表生成分页查询(TableDataInfo)，
+## 树表生成不分页的 R；两条分支仅方法体与返回类型不同。
 #if($table.crud || $table.sub)
-    public TableDataInfo list(${ClassName} ${className})
+    public TableDataInfo<${ClassName}> list(${ClassName} ${className})
     {
         startPage();
         List<${ClassName}> list = ${className}Service.select${ClassName}List(${className});
         return getDataTable(list);
     }
 #elseif($table.tree)
-    public AjaxResult list(${ClassName} ${className})
+    public R<List<${ClassName}>> list(${ClassName} ${className})
     {
         List<${ClassName}> list = ${className}Service.select${ClassName}List(${className});
-        return success(list);
+        return R.ok(list);
     }
 #end
 
     /**
      * 导出${functionName}列表
      */
+    @Operation(summary = "导出${functionName}列表")
     @PreAuthorize("@ss.hasPermi('${permissionPrefix}:export')")
     @Log(title = "${functionName}", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
@@ -73,43 +116,58 @@ public class ${ClassName}Controller extends BaseController
     /**
      * 获取${functionName}详细信息
      */
+## $pkColumn 为主键列对象：$pkColumn.javaField=主键属性名(小驼峰)、
+## $pkColumn.javaType=主键 Java 类型、$pkColumn.capJavaField=首字母大写属性名。
+## 【改造】详情查询改为 MyBatis-Plus 的 getById；
+## 注意：路径 "/{${pkColumn.javaField}}" 中的花括号属于 URL 模板，不是 Velocity 语法。
+    @Operation(summary = "获取${functionName}详情")
     @PreAuthorize("@ss.hasPermi('${permissionPrefix}:query')")
     @GetMapping(value = "/{${pkColumn.javaField}}")
-    public AjaxResult getInfo(@PathVariable("${pkColumn.javaField}") ${pkColumn.javaType} ${pkColumn.javaField})
+    public R<${ClassName}> getInfo(@PathVariable("${pkColumn.javaField}") ${pkColumn.javaType} ${pkColumn.javaField})
     {
-        return success(${className}Service.select${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaField}));
+        return R.ok(${className}Service.getById(${pkColumn.javaField}));
     }
 
     /**
      * 新增${functionName}
      */
+    @Operation(summary = "新增${functionName}")
     @PreAuthorize("@ss.hasPermi('${permissionPrefix}:add')")
     @Log(title = "${functionName}", businessType = BusinessType.INSERT)
     @PostMapping
-    public AjaxResult add(@RequestBody ${ClassName} ${className})
+    public R add(@RequestBody ${ClassName} ${className})
     {
-        return toAjax(${className}Service.insert${ClassName}(${className}));
+        return R.ok(${className}Service.insert${ClassName}(${className}));
     }
 
     /**
      * 修改${functionName}
      */
+    @Operation(summary = "修改${functionName}")
     @PreAuthorize("@ss.hasPermi('${permissionPrefix}:edit')")
     @Log(title = "${functionName}", businessType = BusinessType.UPDATE)
     @PutMapping
-    public AjaxResult edit(@RequestBody ${ClassName} ${className})
+    public R edit(@RequestBody ${ClassName} ${className})
     {
-        return toAjax(${className}Service.update${ClassName}(${className}));
+        return R.ok(${className}Service.update${ClassName}(${className}));
     }
 
     /**
      * 删除${functionName}
      */
+## ${pkColumn.javaField}s 会在主键属性名后拼接字母 s，得到复数形式（如 id -> ids）。
+## 【改造】删除改用 MyBatis-Plus：普通表直接调用 IService 的 removeByIds 批量删除；
+## 主子表因需级联删除子表数据，改调自定义的 deleteXxxByIds（见下方 #if/#else）。
+    @Operation(summary = "删除${functionName}")
     @PreAuthorize("@ss.hasPermi('${permissionPrefix}:remove')")
     @Log(title = "${functionName}", businessType = BusinessType.DELETE)
 	@DeleteMapping("/{${pkColumn.javaField}s}")
-    public AjaxResult remove(@PathVariable ${pkColumn.javaType}[] ${pkColumn.javaField}s)
+    public R remove(@PathVariable ${pkColumn.javaType}[] ${pkColumn.javaField}s)
     {
-        return toAjax(${className}Service.delete${ClassName}By${pkColumn.capJavaField}s(${pkColumn.javaField}s));
+#if($table.sub)
+        return R.ok(${className}Service.delete${ClassName}By${pkColumn.capJavaField}s(${pkColumn.javaField}s));
+#else
+        return R.ok(${className}Service.removeByIds(List.of(${pkColumn.javaField}s)));
+#end
     }
 }

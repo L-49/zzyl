@@ -1,16 +1,51 @@
+## =============================================================================
+## index.vue.vm —— 代码生成器「Vue3 列表页」模板
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是真正的 Vue 文件。最终会被渲染成一个
+##   index.vue：${...} 与 $xxx 会被引擎替换成真实值，#xxx 是指令。因此模板中
+##   一切“说明文字”都必须写成 Velocity 注释，否则会被原样输出进生成的 .vue。
+##   切勿用 JS 注释或 HTML 注释的写法来写说明。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；整行以 ##
+##                开头时，生成结果里不会留下空行。因其会吃掉换行，故 ## 只能
+##                独占整行，绝不能追加到有输出内容的行尾。
+##   #* ... *#    多行(块)注释：可跨行，块内内容不按 Velocity 解析。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值；推荐用
+##                        ${} 包裹，避免与紧随其后的字符粘连。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   $obj.method(参数)    方法调用，返回值参与输出。
+##   #set($x = 表达式)    定义或给引用赋值（本身不产生任何输出）。
+##   #foreach($i in $list) ... #end    遍历循环；$foreach.index / $foreach.count 为循环状态。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   #break               立即跳出当前 #foreach 循环。
+##   #[[ ... ]]#          原样输出块：块内不按 Velocity 解析，用于输出字面量（如
+##                        JS 的 $refs / $modal / ${...} 模板字符串）。
+##   空白规则：指令独占一行（行首行尾仅空白）时，Velocity 会连同该行换行一起
+##             删除，所以生成的 index.vue 里不会出现多余空行。
+## =============================================================================
 <template>
   <div class="app-container">
     <el-form :model="queryParams" ref="queryRef" :inline="true" v-show="showSearch" label-width="68px">
+## #foreach ... #end：遍历 $columns（当前表全部列），$column 为循环变量。
 #foreach($column in $columns)
+## $column.query 为布尔属性：仅对「查询条件」列生成查询表单项。
 #if($column.query)
+## #set：给引用赋值（无输出）。下面依次取字典类型、首字母大写的属性名，
+## 以及列注释中首个中文左括号的下标（indexOf 找不到时返回 -1）。
+## $column.javaField.substring(0,1).toUpperCase() 为字符串方法调用 + 拼接。
 #set($dictType=$column.dictType)
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
+## 列注释含中文括号时，取括号前的名称写入 $comment；否则整段注释即 $comment。
 #if($parentheseIndex != -1)
 #set($comment=$column.columnComment.substring(0, $parentheseIndex))
 #else
 #set($comment=$column.columnComment)
 #end
+## 按列的控件类型 $column.htmlType 选择查询控件（#if / #elseif / #end 分支链）。
 #if($column.htmlType == "input")
       <el-form-item label="${comment}" prop="${column.javaField}">
         <el-input
@@ -20,6 +55,7 @@
           @keyup.enter="handleQuery"
         />
       </el-form-item>
+## #elseif：选择/单选且有字典 → el-select，v-for 渲染字典项。
 #elseif(($column.htmlType == "select" || $column.htmlType == "radio") && "" != $dictType)
       <el-form-item label="${comment}" prop="${column.javaField}">
         <el-select v-model="queryParams.${column.javaField}" placeholder="请选择${comment}" clearable>
@@ -37,6 +73,7 @@
           <el-option label="请选择字典生成" value="" />
         </el-select>
       </el-form-item>
+## #elseif：日期单值 → el-date-picker。
 #elseif($column.htmlType == "datetime" && $column.queryType != "BETWEEN")
       <el-form-item label="${comment}" prop="${column.javaField}">
         <el-date-picker clearable
@@ -46,6 +83,7 @@
           placeholder="请选择${comment}">
         </el-date-picker>
       </el-form-item>
+## #elseif：日期区间(BETWEEN) → daterange 区间选择器。
 #elseif($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
       <el-form-item label="${comment}" style="width: 308px">
         <el-date-picker
@@ -57,6 +95,7 @@
           end-placeholder="结束日期"
         ></el-date-picker>
       </el-form-item>
+## 依次闭合控件分支 #if、查询列 #if 与列遍历 #foreach 三处块指令。
 #end
 #end
 #end
@@ -66,6 +105,7 @@
       </el-form-item>
     </el-form>
 
+## ${permissionPrefix} 为权限前缀引用，拼成按钮的 v-hasPermi 权限标识。
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
@@ -108,8 +148,10 @@
       <right-toolbar v-model:showSearch="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
+## ${businessName}/${BusinessName} 为业务名的小/大驼峰引用，用于变量与组件命名。
     <el-table v-loading="loading" :data="${businessName}List" @selection-change="handleSelectionChange">
       <el-table-column type="selection" width="55" align="center" />
+## 遍历列生成表格列，先 #set 取出字段名与去掉中文括号的注释。
 #foreach($column in $columns)
 #set($javaField=$column.javaField)
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
@@ -118,6 +160,8 @@
 #else
 #set($comment=$column.columnComment)
 #end
+## #if/#elseif 链：按列类型生成不同列——主键直接展示；日期格式化输出；图片用
+## image-preview；有字典用 dict-tag；其余在 $column.list 为真时普通展示。
 #if($column.pk)
       <el-table-column label="${comment}" align="center" prop="${javaField}" />
 #elseif($column.list && $column.htmlType == "datetime")
@@ -135,6 +179,7 @@
 #elseif($column.list && "" != $column.dictType)
       <el-table-column label="${comment}" align="center" prop="${javaField}">
         <template #default="scope">
+## 字典值为多选(checkbox)时，需按逗号切分成数组再传给 dict-tag。
 #if($column.htmlType == "checkbox")
           <dict-tag :options="${column.dictType}" :value="scope.row.${javaField} ? scope.row.${javaField}.split(',') : []"/>
 #else
@@ -144,10 +189,12 @@
       </el-table-column>
 #elseif($column.list && "" != $javaField)
       <el-table-column label="${comment}" align="center" prop="${javaField}" />
+## 依次闭合本列的 #if 分支链与 #foreach 循环。
 #end
 #end
       <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
         <template #default="scope">
+## $genView 为开关引用：为真时才生成「详情」按钮。
 #if($genView)
           <el-button link type="primary" icon="View" @click="handleViewData(scope.row)" v-hasPermi="['${permissionPrefix}:query']">详情</el-button>
 #end
@@ -165,11 +212,13 @@
       @pagination="getList"
     />
 
+## 为真时挂载详情抽屉子组件（由 view.vue.vm 渲染生成）。
 #if($genView)
     <!-- ${functionName}详情抽屉 -->
     <${businessName}-view-drawer ref="${businessName}ViewRef" />
 #end
     <!-- 添加或修改${functionName}对话框 -->
+## 依据表单列数 $table.formColNum 计算弹窗宽度 $dialogWidth。
 #if($table.formColNum == 2)
 #set($dialogWidth = "800px")
 #elseif($table.formColNum == 3)
@@ -180,10 +229,13 @@
     <el-dialog :title="title" v-model="open" width="${dialogWidth}" append-to-body>
       <el-form ref="${businessName}Ref" :model="form" :rules="rules" label-width="100px">
         <el-row>
+## 再次遍历列生成表单项，仅处理「可插入且非主键」的列。
 #foreach($column in $columns)
 #set($field=$column.javaField)
+## 排除主键、父类公共字段与不可用字段。
 #if($column.insert && !$column.pk)
 #if(($column.usableColumn) || (!$column.superColumn))
+## #set 提取字段名 $field 与去括号注释 $comment，$dictType 为字典类型。
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
 #if($parentheseIndex != -1)
 #set($comment=$column.columnComment.substring(0, $parentheseIndex))
@@ -191,6 +243,7 @@
 #set($comment=$column.columnComment)
 #end
 #set($dictType=$column.dictType)
+## 按 $column.htmlType 生成录入控件（输入/上传/富文本/下拉/多选/单选/日期/多行文本）。
 #if($column.htmlType == "input")
           <el-col :span="${colSpan}">
             <el-form-item label="${comment}" prop="${field}">
@@ -215,6 +268,7 @@
               <editor v-model="form.${field}" :min-height="192"/>
             </el-form-item>
           </el-col>
+## #elseif：下拉且有字典 → v-for 渲染；Integer/Long 用 parseInt 转换选项值。
 #elseif($column.htmlType == "select" && "" != $dictType)
           <el-col :span="${colSpan}">
             <el-form-item label="${comment}" prop="${field}">
@@ -240,6 +294,7 @@
               </el-select>
             </el-form-item>
           </el-col>
+## #elseif：多选框 checkbox → 字典多选组。
 #elseif($column.htmlType == "checkbox" && "" != $dictType)
           <el-col :span="${colSpan}">
             <el-form-item label="${comment}" prop="${field}">
@@ -261,6 +316,7 @@
               </el-checkbox-group>
             </el-form-item>
           </el-col>
+## #elseif：单选框 radio → 字典单选组（同样区分 Integer/Long）。
 #elseif($column.htmlType == "radio" && "" != $dictType)
           <el-col :span="${colSpan}">
             <el-form-item label="${comment}" prop="${field}">
@@ -285,6 +341,7 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
+## #elseif：日期 → el-date-picker。
 #elseif($column.htmlType == "datetime")
           <el-col :span="${colSpan}">
             <el-form-item label="${comment}" prop="${field}">
@@ -296,17 +353,20 @@
               </el-date-picker>
             </el-form-item>
           </el-col>
+## #elseif：多行文本 → textarea。
 #elseif($column.htmlType == "textarea")
           <el-col :span="24">
             <el-form-item label="${comment}" prop="${field}">
               <el-input v-model="form.${field}" type="textarea" placeholder="请输入内容" />
             </el-form-item>
           </el-col>
+## 依次闭合控件分支、内部 #if、#if(insert) 与列遍历共四处 #end。
 #end
 #end
 #end
 #end
         </el-row>
+## 主子表：$table.sub 为真时，额外生成可编辑的子表表格。
 #if($table.sub)
         <el-divider content-position="center">${subTable.functionName}信息</el-divider>
         <el-row :gutter="10" class="mb8">
@@ -324,6 +384,7 @@
               {{ $index + 1 }}
             </template>
           </el-table-column>
+## 遍历子表列 $subTable.columns 生成子表可编辑列。
 #foreach($column in $subTable.columns)
 #set($javaField=$column.javaField)
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
@@ -333,6 +394,8 @@
 #set($comment=$column.columnComment)
 #end
 #if($column.pk || $javaField == ${subTableFkclassName})
+## 主键与外键列用空分支占位（不输出）；其余按类型生成输入/日期/下拉控件。
+## 注意：这段行内使用了不带花括号的 $comment / $javaField，属合法引用写法。
 #elseif($column.list && $column.htmlType == "input")
           <el-table-column label="$comment" prop="${javaField}" width="150">
             <template #default="scope">
@@ -371,6 +434,7 @@
               </el-select>
             </template>
           </el-table-column>
+## 依次闭合子表列的 #if 分支链与 #foreach 循环。
 #end
 #end
         </el-table>
@@ -386,19 +450,24 @@
   </div>
 </template>
 
+## ===== 以下进入 <script setup> 逻辑区，Velocity 指令同样生效 =====
 <script setup name="${BusinessName}">
 import { list${BusinessName}, get${BusinessName}, del${BusinessName}, add${BusinessName}, update${BusinessName} } from "@/api/${moduleName}/${businessName}"
+## 为真时按需引入详情抽屉子组件。
 #if($genView)
 import ${BusinessName}ViewDrawer from "./view"
 #end
 
 const { proxy } = getCurrentInstance()
+## ${dicts} 为字典变量名清单字符串；非空时用 useDict 解构出各字典引用。
+## $dicts.replace(..) 为字符串方法调用：去掉其中的单引号得到变量名。
 #if(${dicts} != '')
 #set($dictsNoSymbol=$dicts.replace("'", ""))
 const { ${dictsNoSymbol} } = useDict(${dicts})
 #end
 
 const ${businessName}List = ref([])
+## 主子表：额外的子表数据引用。
 #if($table.sub)
 const ${subclassName}List = ref([])
 #end
@@ -406,6 +475,7 @@ const open = ref(false)
 const loading = ref(true)
 const showSearch = ref(true)
 const ids = ref([])
+## 主子表：子表选中项引用。
 #if($table.sub)
 const checked${subClassName} = ref([])
 #end
@@ -413,6 +483,7 @@ const single = ref(true)
 const multiple = ref(true)
 const total = ref(0)
 const title = ref("")
+## 为区间查询的日期列生成 daterange 引用（$AttrName 为首字母大写拼接）。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
@@ -425,6 +496,8 @@ const data = reactive({
   queryParams: {
     pageNum: 1,
     pageSize: 10,
+## 拼装查询参数默认值：$foreach.count 为当前序号，$columns.size() 为总列数，
+## 用 #if 判断是否为最后一项以决定是否补逗号，保证对象字面量语法正确。
     #foreach ($column in $columns)
 #if($column.query)
     $column.javaField: undefined#if($foreach.count != $columns.size()),#end
@@ -432,6 +505,7 @@ const data = reactive({
 #end
   },
   rules: {
+## 为必填列生成校验规则；trigger 依控件类型取 change 或 blur。
     #foreach ($column in $columns)
 #if($column.required)
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
@@ -453,12 +527,14 @@ const { queryParams, form, rules } = toRefs(data)
 /** 查询${functionName}列表 */
 function getList() {
   loading.value = true
+## 存在日期区间查询时先初始化 params 对象（#break 立即跳出当前循环）。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
   queryParams.value.params = {}
 #break
 #end
 #end
+## 把选中的日期区间写入 params 的 begin/end 参数。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
@@ -484,6 +560,7 @@ function cancel() {
 /** 表单重置 */
 function reset() {
   form.value = {
+## 复位表单：checkbox 列初始化为数组，其余为 null。
 #foreach ($column in $columns)
 #if($column.htmlType == "checkbox")
     $column.javaField: []#if($foreach.count != $columns.size()),#end
@@ -506,6 +583,7 @@ function handleQuery() {
 
 /** 重置按钮操作 */
 function resetQuery() {
+## 清空日期区间引用。
 #foreach ($column in $columns)
 #if($column.htmlType == "datetime" && $column.queryType == "BETWEEN")
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
@@ -536,6 +614,7 @@ function handleUpdate(row) {
   const _${pkColumn.javaField} = row.${pkColumn.javaField} || ids.value
   get${BusinessName}(_${pkColumn.javaField}).then(response => {
     form.value = response.data
+## checkbox 列由逗号字符串转回数组。
 #foreach ($column in $columns)
 #if($column.htmlType == "checkbox")
     form.value.$column.javaField = form.value.${column.javaField}.split(",")
@@ -551,8 +630,11 @@ function handleUpdate(row) {
 
 /** 提交按钮 */
 function submitForm() {
+## #[[ ... ]]#：原样输出块，块内不按 Velocity 解析。此处用于输出字面量 "$"，
+## 使 JS 得到 proxy.$refs（否则 $refs 会被当作引用解析）；下文 #[[$modal]]# 同理。
   proxy.#[[$]]#refs["${businessName}Ref"].validate(valid => {
     if (valid) {
+## checkbox 列提交前拼回逗号字符串。
 #foreach ($column in $columns)
 #if($column.htmlType == "checkbox")
       form.value.$column.javaField = form.value.${column.javaField}.join(",")
@@ -589,10 +671,12 @@ function handleDelete(row) {
   }).catch(() => {})
 }
 
+## 主子表相关的处理方法（新增/删除行、复选框选中）。
 #if($table.sub)
 /** ${subTable.functionName}添加按钮操作 */
 function handleAdd${subClassName}() {
   let obj = {}
+## 遍历子表列，初始化新增行对象的字段。
 #foreach($column in $subTable.columns)
 #if($column.pk || $column.javaField == ${subTableFkclassName})
 #elseif($column.list && "" != $javaField)
@@ -620,7 +704,9 @@ function handle${subClassName}SelectionChange(selection) {
   checked${subClassName}.value = selection.map(item => item.index)
 }
 
+## 闭合主子表方法块。
 #end
+## 为真时生成详情按钮处理函数。
 #if($genView)
 /** 详情按钮操作 */
 function handleViewData(row) {
@@ -632,6 +718,8 @@ function handleViewData(row) {
 function handleExport() {
   proxy.download('${moduleName}/${businessName}/export', {
     ...queryParams.value
+## #[[ ... ]]#：原样输出 JS 模板字符串里的 ${new Date().getTime()}，
+## 避免其中的 ${...} 被 Velocity 当成引用解析。
   }, `${businessName}_#[[${new Date().getTime()}]]#.xlsx`)
 }
 

@@ -1,16 +1,43 @@
+## =============================================================================
+## type.ts.vm —— 代码生成器「前端 TypeScript 类型定义」模板
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 TypeScript 源码。它会被渲染成一个前端
+##   type.ts 文件：${...} 会被引擎替换成真实值，#xxx 才是指令。
+##   模板中一切“说明文字”都必须写成 Velocity 注释，切勿新增 // 或 /* */ 说明。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量或属性；建议用 ${} 包裹防粘连。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   #set($x = 表达式)    定义或赋值（不产生输出）；赋字符串常量需用双引号包裹。
+##   #foreach($x in $list) ... #end        遍历循环。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   空白规则：当指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行
+##             一起删除，所以生成的 TS 里不会出现多余空行。
+##   提醒：${subClassName}[] 等写法中，[] 与 ?: 属于 TypeScript，Velocity 只替换 ${}。
+## =============================================================================
+## 引入公共类型。${functionName}=功能名，${BusinessName}=业务名(大驼峰)。
 import type { PageDomain, BaseEntity } from "../common";
 
 /** ${functionName}配置分页查询参数 */
 export interface ${BusinessName}QueryParams extends PageDomain {
+## #foreach/$end 遍历所有列；#if($column.query) 仅当该列可作为查询条件时才生成参数。
 #foreach($column in $columns)
 #if($column.query)
+## #set 先赋默认类型 "string"（指令不产生输出；字符串常量需用双引号包裹）。
 #set($type = "string")
+## 再按 Java 类型覆盖：Long/Integer → number，Boolean → boolean，其余保持 string。
 #if($column.javaType == "Long" || $column.javaType == "Integer")
   #set($type = "number")
 #elseif($column.javaType == "Boolean")
   #set($type = "boolean")
 #end
   /** ${column.columnComment} */
+## ${column.javaField}=列属性名，${type}=上面 #set 得到的 TS 类型。
   ${column.javaField}?: ${type};
 #end
 #end
@@ -18,6 +45,7 @@ export interface ${BusinessName}QueryParams extends PageDomain {
 
 /** ${functionName}配置信息 */
 export interface ${ClassName} extends BaseEntity {
+## 同样遍历列，为实体生成全部可选属性（此处不再按 query 过滤）。
 #foreach($column in $columns)
 #set($type = "string")
 #if($column.javaType == "Long" || $column.javaType == "Integer")
@@ -28,15 +56,18 @@ export interface ${ClassName} extends BaseEntity {
   /** ${column.columnComment} */
   ${column.javaField}?: ${type};
 #end
+## 主子表：追加子表集合属性 ${subclassName}List。
 #if($table.sub)
   /** $table.subTable.functionName信息 */
   ${subclassName}List?: ${subClassName}[];
 #end
 }
+## 主子表：再生成一个子表类型定义。
 #if($table.sub)
 
 /** ${subTable.functionName}配置信息 */
 export interface ${subClassName} extends BaseEntity {
+## 遍历子表列（$subTable.columns），生成子表属性。
 #foreach ($column in $subTable.columns)
 #set($type = "string")
 #if($column.javaType == "Long" || $column.javaType == "Integer")

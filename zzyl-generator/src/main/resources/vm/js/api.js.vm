@@ -1,6 +1,27 @@
+## =============================================================================
+## api.js.vm —— 代码生成器「前端 API 请求(JavaScript)」模板
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 JavaScript 源码。它会被渲染成一个前端
+##   api.js 文件：${...} 会被引擎替换成真实值，#xxx 才是指令。
+##   模板中一切“说明文字”都必须写成 Velocity 注释，切勿新增 // 或 /* */ 说明。
+##   （本文件中原有的 // 注释是 JS 内容，会被原样输出，属于刻意保留。）
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name}      引用(Reference)：输出变量；本文件全部使用 ${} 形式，避免与相邻字符粘连。
+##   $xxx         等价写法，但本文件统一用 ${} 更安全（如 '${moduleName}'）。单引号属 JS 文本。
+##   本文件不含 #set/#foreach/#if 等指令，仅做变量替换，因此无需 #end。
+##   空白规则：指令独占一行时会连同换行一起被删除（本文件无指令行）。
+## =============================================================================
+## 引入前端统一请求封装。${BusinessName}=业务名(大驼峰)，${functionName}=功能名。
 import request from '@/utils/request'
 
 // 查询${functionName}列表
+## 函数名中拼接 ${BusinessName}，其请求地址由 ${moduleName}/${businessName} 组成。
 export function list${BusinessName}(query) {
   return request({
     url: '/${moduleName}/${businessName}/list',
@@ -10,6 +31,7 @@ export function list${BusinessName}(query) {
 }
 
 // 查询${functionName}详细
+## ${pkColumn.javaField}=主键属性名，这里作为函数形参并拼接进 URL。
 export function get${BusinessName}(${pkColumn.javaField}) {
   return request({
     url: '/${moduleName}/${businessName}/' + ${pkColumn.javaField},

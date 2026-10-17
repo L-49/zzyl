@@ -1,12 +1,13 @@
 package com.zzyl.generator.util;
 
-import java.util.Arrays;
-import org.apache.commons.lang3.RegExUtils;
 import com.zzyl.common.constant.GenConstants;
 import com.zzyl.common.utils.StringUtils;
 import com.zzyl.generator.config.GenConfig;
 import com.zzyl.generator.domain.GenTable;
 import com.zzyl.generator.domain.GenTableColumn;
+import org.apache.commons.lang3.RegExUtils;
+
+import java.util.Arrays;
 
 /**
  * 代码生成器 工具类
@@ -53,7 +54,8 @@ public class GenUtils
         }
         else if (arraysContains(GenConstants.COLUMNTYPE_TIME, dataType))
         {
-            column.setJavaType(GenConstants.TYPE_DATE);
+            // 将日期时间类型改为LocalDateTime
+            column.setJavaType(GenConstants.TYPE_LOCAL_DATE_TIME);
             column.setHtmlType(GenConstants.HTML_DATETIME);
         }
         else if (arraysContains(GenConstants.COLUMNTYPE_NUMBER, dataType))
@@ -67,7 +69,9 @@ public class GenUtils
                 column.setJavaType(GenConstants.TYPE_BIGDECIMAL);
             }
             // 如果是整形
-            else if (str != null && str.length == 1 && Integer.parseInt(str[0]) <= 10)
+            else if (str != null && str.length == 1 && Integer.parseInt(str[0]) <= 10
+                    || GenConstants.MYSQL_TINYINT.equals(column.getColumnType())
+                    || GenConstants.MYSQL_INT.equals(column.getColumnType()))
             {
                 column.setJavaType(GenConstants.TYPE_INTEGER);
             }

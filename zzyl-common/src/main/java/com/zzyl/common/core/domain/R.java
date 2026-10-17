@@ -1,13 +1,16 @@
 package com.zzyl.common.core.domain;
 
-import java.io.Serializable;
 import com.zzyl.common.constant.HttpStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+
+import java.io.Serializable;
 
 /**
  * 响应信息主体
  *
  * @author ruoyi
  */
+@Schema(description = "响应信息主体")
 public class R<T> implements Serializable
 {
     private static final long serialVersionUID = 1L;
@@ -17,11 +20,11 @@ public class R<T> implements Serializable
 
     /** 失败 */
     public static final int FAIL = HttpStatus.ERROR;
-
+    @Schema(description = "状态码")
     private int code;
-
+    @Schema(description = "提示信息")
     private String msg;
-
+    @Schema(description = "数据")
     private T data;
 
     public static <T> R<T> ok()

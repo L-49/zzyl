@@ -1,14 +1,43 @@
+## =============================================================================
+## mapper.xml.vm —— 代码生成器「MyBatis 映射文件(mapper.xml)」模板
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是真正的 XML 源码。它会被渲染成一个
+##   MyBatis 映射文件：${...} 与 $xxx 会被引擎替换成真实值，#xxx 是指令。
+##   模板中一切“说明文字”都必须写成 Velocity 注释，切勿使用 // 或 /* */ 或 XML 注释。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值。
+##                        推荐用 ${} 包裹，避免与紧随其后的字符粘连（更安全）。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   #set($x = 表达式)    定义或给引用赋值（本身不产生任何输出）。
+##   #foreach($x in $list) ... #end        遍历循环。
+##   $foreach.count / $foreach.index     循环内建的序号（count 从 1 起、index 从 0 起）。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   空白规则：当指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行
+##             一起删除，所以生成的 XML 里不会出现多余空行。
+##
+## 【易混淆点】#{} 是 MyBatis 的参数占位符，不是 Velocity 语法，会被原样输出；
+##   同理 like concat('%', ...) 等为普通文本。$ 仍是 Velocity 引用，会先被替换。
+## =============================================================================
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper
 PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="${packageName}.mapper.${ClassName}Mapper">
     
+## 结果映射：遍历主表所有列，为每列生成一条 <result> 映射。
+## $column.javaField=实体属性名，$column.columnName=数据库列名。
     <resultMap type="${ClassName}" id="${ClassName}Result">
 #foreach ($column in $columns)
         <result property="${column.javaField}"    column="${column.columnName}"    />
 #end
     </resultMap>
+## 主子表：额外为子表生成结果映射，并用 <collection> 关联子表集合。
 #if($table.sub)
 
     <resultMap id="${ClassName}${subClassName}Result" type="${ClassName}" extends="${ClassName}Result">
@@ -16,12 +45,15 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </resultMap>
 
     <resultMap type="${subClassName}" id="${subClassName}Result">
+## 遍历子表列，为子表生成 <result> 映射（同为 #foreach/#end 结构）。
 #foreach ($column in $subTable.columns)
         <result property="${column.javaField}"    column="${column.columnName}"    />
 #end
     </resultMap>
 #end
 
+## 公共查询片段：下面一行把 #foreach/#if 写在内容行的中间（非独占行，故行内容与换行都保留）。
+## 逻辑：拼接所有列名，除最后一列外每列后补一个逗号（用 $foreach.count != $columns.size() 判断）。
     <sql id="select${ClassName}Vo">
         select#foreach($column in $columns) $column.columnName#if($foreach.count != $columns.size()),#end#end from ${tableName}
     </sql>
@@ -29,13 +61,19 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     <select id="select${ClassName}List" parameterType="${ClassName}" resultMap="${ClassName}Result">
         <include refid="select${ClassName}Vo"/>
         <where>  
+## 动态查询条件：遍历列，先用 #set 把当前列的查询类型/字段名/类型等取出为局部变量，
+## 便于下面拼接更简洁。#set 只赋值、不输出；其值来自 $column 的属性或方法返回值。
 #foreach($column in $columns)
 #set($queryType=$column.queryType)
 #set($javaField=$column.javaField)
 #set($javaType=$column.javaType)
 #set($columnName=$column.columnName)
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
+## 仅当该列允许作为查询条件($column.query 为真)时才生成条件分支。
 #if($column.query)
+## 按查询类型生成不同的比较符分支。以下每行内容中还各嵌有一个 #if...#end（非独占行，
+## 不会被删除），用于 String 类型时追加 trim() != '' 判空；#{$javaField} 是 MyBatis
+## 占位符，会原样输出，其中的 $javaField 仍会先被 Velocity 替换。
 #if($column.queryType == "EQ")
             <if test="$javaField != null #if($javaType == 'String' ) and $javaField.trim() != ''#end"> and $columnName = #{$javaField}</if>
 #elseif($queryType == "NE")
@@ -55,9 +93,12 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 #end
 #end
 #end
+## 以上三个 #end 依次闭合：查询类型分支、查询条件判断($column.query)、列遍历循环。
         </where>
     </select>
     
+## 按主键查询：resultMap 属性内用 #if/#else/#end 在同一行内挑选结果映射名
+##（主子表用子表映射，否则用主表映射）；下面再按表类型选择不同的查询 SQL。
     <select id="select${ClassName}By${pkColumn.capJavaField}" parameterType="${pkColumn.javaType}" resultMap="#if($table.sub)${ClassName}${subClassName}Result#else${ClassName}Result#end">
 #if($table.crud || $table.tree)
         <include refid="select${ClassName}Vo"/>
@@ -68,6 +109,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where ${pkColumn.columnName} = #{${pkColumn.javaField}}
 #end
     </select>
+## 主子表：查询子表列表的语句（按子表外键 ${subTableFkName} 过滤）。
 #if($table.sub)
 
     <select id="select${subClassName}List" resultMap="${subClassName}Result">
@@ -77,6 +119,9 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
     </select>
 #end
 
+## 新增语句：标签属性内用 #if($pkColumn.increment)...#end 在同一行内控制是否使用自增主键。
+## 下面拼接插入列名：遍历列，若该列不是自增主键则生成一段动态 <if> 列；
+## 每行内容中的 #if...#end 用于 String 且必填时追加判空，属非独占行，不会被删除。
     <insert id="insert${ClassName}" parameterType="${ClassName}"#if($pkColumn.increment) useGeneratedKeys="true" keyProperty="$pkColumn.javaField"#end>
         insert into ${tableName}
         <trim prefix="(" suffix=")" suffixOverrides=",">
@@ -87,6 +132,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
 #end
          </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+## 与上面同理，这里生成与列一一对应的 #{} 值占位符列表。
 #foreach($column in $columns)
 #if($column.columnName != $pkColumn.columnName || !$pkColumn.increment)
             <if test="$column.javaField != null#if($column.javaType == 'String' && $column.required) and $column.javaField != ''#end">#{$column.javaField},</if>
@@ -95,6 +141,7 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
          </trim>
     </insert>
 
+## 修改语句：遍历列并跳过主键列，拼出 SET 子句的动态赋值片段。
     <update id="update${ClassName}" parameterType="${ClassName}">
         update ${tableName}
         <trim prefix="SET" suffixOverrides=",">
@@ -111,12 +158,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from ${tableName} where ${pkColumn.columnName} = #{${pkColumn.javaField}}
     </delete>
 
+## 批量删除：注意 <foreach> 是 MyBatis 标签（非 Velocity 指令），其中的 ${...} 仍会被替换。
     <delete id="delete${ClassName}By${pkColumn.capJavaField}s" parameterType="String">
         delete from ${tableName} where ${pkColumn.columnName} in 
         <foreach item="${pkColumn.javaField}" collection="array" open="(" separator="," close=")">
             #{${pkColumn.javaField}}
         </foreach>
     </delete>
+## 主子表：下面生成子表的批量删除、按主键删除以及批量插入语句。
 #if($table.sub)
     
     <delete id="delete${subClassName}By${subTableFkClassName}s" parameterType="String">
@@ -130,6 +179,8 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         delete from ${subTableName} where ${subTableFkName} = #{${subTableFkclassName}}
     </delete>
 
+## 子表批量插入：下面两行把 #foreach/#if 内联在使用处（非独占行，内容与换行都会保留）。
+## 其中 #{item.$column.javaField} 的 "item." 是字面文本，$column.javaField 会先被替换成属性名。
     <insert id="batch${subClassName}">
         insert into ${subTableName}(#foreach($column in $subTable.columns) $column.columnName#if($foreach.count != $subTable.columns.size()),#end#end) values
         <foreach item="item" index="index" collection="list" separator=",">

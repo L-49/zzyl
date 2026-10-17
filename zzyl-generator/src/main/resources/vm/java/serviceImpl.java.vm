@@ -1,14 +1,51 @@
+## =============================================================================
+## serviceImpl.java.vm —— 代码生成器「Service 实现类（业务实现）」模板【MyBatis-Plus 版】
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 Java 源码。它会被渲染成一个 ServiceImpl
+##   .java 文件：${...} 与 $xxx 会被引擎替换成真实值，#xxx 是指令。因此模板中一切
+##   “说明文字”都必须写成 Velocity 注释，切勿使用 // 或 /* */，否则会被原样输出。
+##
+## 【本次改造：MyBatis -> MyBatis-Plus】
+##   1. 实现类改为继承 com.baomidou.mybatisplus.extension.service.impl.ServiceImpl
+##      （泛型为 <Mapper, 实体>），并实现 I${ClassName}Service；
+##   2. getById、removeById / removeByIds 等通用方法由 MP 提供，故不再生成
+##      selectXxxById / deleteXxxById / deleteXxxByIds（主子表除外）；
+##   3. 仅保留自定义 SQL 的实现：selectXxxList / insertXxx / updateXxx
+##      （主子表额外保留 deleteXxxByIds 处理子表级联删除）。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值。
+##                        推荐用 ${} 包裹，避免与紧随其后的字符粘连（更安全）。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   #foreach($x in $list) ... #end        遍历循环；#break 可提前跳出循环。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   #end                 结束 #foreach / #if 等块指令。
+##   空白规则：当指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行
+##             一起删除，所以生成的 Java 里不会出现多余空行。
+## =============================================================================
+## ${packageName}：生成器传入的包名，与固定后缀 ".service.impl" 拼接成包声明。
 package ${packageName}.service.impl;
 
 import java.util.List;
+## #foreach($column in $columns)：遍历所有列；#if 判断当前列是否为 createTime/updateTime。
+## 只要命中一次，就用 #break 提前跳出循环（避免重复生成同一条 import），
+## 循环与分支分别由 #end 收尾。
 #foreach ($column in $columns)
 #if($column.javaField == 'createTime' || $column.javaField == 'updateTime')
 import com.zzyl.common.utils.DateUtils;
 #break
 #end
 #end
+## 【改造核心】引入 MyBatis-Plus 的业务层通用实现基类，继承它即获得 IService 默认实现。
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+## #if($table.sub)：仅主子表时才需要事务、集合等额外导包。
 #if($table.sub)
 import java.util.ArrayList;
 import com.zzyl.common.utils.StringUtils;
@@ -25,23 +62,14 @@ import ${packageName}.service.I${ClassName}Service;
  * @author ${author}
  * @date ${datetime}
  */
+## extends ServiceImpl<Mapper, 实体>：关键改造点。继承后自动获得 IService 的通用实现，
+##   getById / removeById / removeByIds / save / updateById 等可直接使用。
+## ${ClassName}=类名(大驼峰)，实现类名在其后拼接 "ServiceImpl"；${className}=小驼峰实例名。
 @Service
-public class ${ClassName}ServiceImpl implements I${ClassName}Service 
+public class ${ClassName}ServiceImpl extends ServiceImpl<${ClassName}Mapper, ${ClassName}> implements I${ClassName}Service
 {
     @Autowired
     private ${ClassName}Mapper ${className}Mapper;
-
-    /**
-     * 查询${functionName}
-     * 
-     * @param ${pkColumn.javaField} ${functionName}主键
-     * @return ${functionName}
-     */
-    @Override
-    public ${ClassName} select${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField})
-    {
-        return ${className}Mapper.select${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaField});
-    }
 
     /**
      * 查询${functionName}列表
@@ -61,17 +89,20 @@ public class ${ClassName}ServiceImpl implements I${ClassName}Service
      * @param ${className} ${functionName}
      * @return 结果
      */
+## #if($table.sub) ... #end：主子表的写操作需要事务，故动态加上 @Transactional 注解。
 #if($table.sub)
     @Transactional
 #end
     @Override
     public int insert${ClassName}(${ClassName} ${className})
     {
+## 遍历所有列：当存在名为 createTime 的字段时，才生成设置创建时间的代码。
 #foreach ($column in $columns)
 #if($column.javaField == 'createTime')
         ${className}.setCreateTime(DateUtils.getNowDate());
 #end
 #end
+## #if/#else/#end：主子表先插入主表、再调用 insert子表方法；普通表直接插入并返回。
 #if($table.sub)
         int rows = ${className}Mapper.insert${ClassName}(${className});
         insert${subClassName}(${className});
@@ -87,23 +118,29 @@ public class ${ClassName}ServiceImpl implements I${ClassName}Service
      * @param ${className} ${functionName}
      * @return 结果
      */
+## 修改同样在主子表场景下加事务。
 #if($table.sub)
     @Transactional
 #end
     @Override
     public int update${ClassName}(${ClassName} ${className})
     {
+## 遍历列：存在 updateTime 字段时才生成设置更新时间的代码。
 #foreach ($column in $columns)
 #if($column.javaField == 'updateTime')
         ${className}.setUpdateTime(DateUtils.getNowDate());
 #end
 #end
+## 主子表：先按主键删除旧的子表数据再重新插入（${className}.getXxx() 为对象方法调用）。
 #if($table.sub)
         ${className}Mapper.delete${subClassName}By${subTableFkClassName}(${className}.get${pkColumn.capJavaField}());
         insert${subClassName}(${className});
 #end
         return ${className}Mapper.update${ClassName}(${className});
     }
+## 主子表：批量删除需先删子表关联数据，故保留自定义 deleteXxxByIds；普通表则由
+## MyBatis-Plus 的 removeByIds 直接完成，无需生成任何删除方法。
+#if($table.sub)
 
     /**
      * 批量删除${functionName}
@@ -111,36 +148,15 @@ public class ${ClassName}ServiceImpl implements I${ClassName}Service
      * @param ${pkColumn.javaField}s 需要删除的${functionName}主键
      * @return 结果
      */
-#if($table.sub)
     @Transactional
-#end
     @Override
     public int delete${ClassName}By${pkColumn.capJavaField}s(${pkColumn.javaType}[] ${pkColumn.javaField}s)
     {
-#if($table.sub)
         ${className}Mapper.delete${subClassName}By${subTableFkClassName}s(${pkColumn.javaField}s);
-#end
         return ${className}Mapper.delete${ClassName}By${pkColumn.capJavaField}s(${pkColumn.javaField}s);
     }
-
-    /**
-     * 删除${functionName}信息
-     * 
-     * @param ${pkColumn.javaField} ${functionName}主键
-     * @return 结果
-     */
-#if($table.sub)
-    @Transactional
-#end
-    @Override
-    public int delete${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField})
-    {
-#if($table.sub)
-        ${className}Mapper.delete${subClassName}By${subTableFkClassName}(${pkColumn.javaField});
-#end
-        return ${className}Mapper.delete${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaField});
-    }
-#if($table.sub)
+## #if($table.sub)：主子表时额外追加一个「新增子表数据」的私有方法。
+## 其中 ${subClassName}=子表类名(大驼峰)，${subclassName}=子表实例名(小驼峰)。
 
     /**
      * 新增${subTable.functionName}信息

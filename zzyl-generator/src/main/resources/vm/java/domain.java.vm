@@ -1,79 +1,194 @@
+## =============================================================================
+## domain.java.vm —— 代码生成器「实体类(domain)」模板【Swagger(MyBatis-Plus 版)】
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 Java 源码。最终它会被渲染成一个
+##   .java 文件：${...} 与 $xxx 会被引擎替换成真实值，#xxx 是指令。
+##   因此模板中一切“说明文字”都必须写成 Velocity 注释，否则会被原样输出进
+##   生成的 Java 文件里。切勿在本文件中使用 // 或 /* */ 写说明。
+##
+## 【本次改造：补齐 Swagger(OpenAPI3) 注解，对齐 NursingProject 的用法】
+##   1. 类上加 @Schema(description = "${functionName}")，Knife4j 显示中文模型名；
+##   2. 每个字段上加 @Schema(description=列注释)，并按类型给出通用 example：
+##      主键额外加 accessMode = READ_ONLY（主键由数据库生成，文档标注只读）；
+##   3. 列注释形如“状态（0禁用 1启用）”的字典列：由 readConverterExp()
+##      反解出枚举键，生成 allowableValues = {"0", "1"}；
+##   4. Lombok 注解对齐参考代码顺序：@Schema -> @Data -> @NoArgsConstructor
+##      -> @AllArgsConstructor（getter/setter/toString 由 Lombok 生成）。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除，
+##                因此整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，块内内容不被引擎解析（不嵌套，
+##                遇到第一个 *# 即结束）。也可写在代码同一行末尾。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法的返回值。
+##                        推荐用 ${} 包裹，避免与紧随其后的字符粘连（更安全）。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   $obj.method(参数)    方法调用，返回值参与输出。
+##   #set($x = 表达式)    定义或给引用赋值（本身不产生任何输出）。
+##   #foreach($i in $list) ... #end        遍历循环。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   #end                 结束 #foreach / #if 等块指令。
+##   空白规则：当指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行的
+##             换行一起删除，所以生成的 Java 里不会出现多余空行。
+## =============================================================================
+## ${packageName}：生成器传入的包名，与固定后缀 ".domain" 拼接成包声明。
 package ${packageName}.domain;
 
+## #foreach ... #end：遍历 $importList（当前表需要用到的导包全限定名集合）。
+## $import 是循环变量，${import} 引用它并输出为一条 import 语句。
+## 因 #foreach/#end 独占一行，指令行被引擎吃掉，生成结果里只剩真正的 import。
 #foreach ($import in $importList)
 import ${import};
 #end
+## 以下为模板固定输出的导包，不依赖任何变量。
+## Swagger(OpenAPI3) @Schema 注解：类与字段的接口文档说明（knife4j 展示用）。
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 import com.zzyl.common.annotation.Excel;
+## 条件分支：#if / #elseif / #end。
+## $table.crud、$table.sub、$table.tree 是表对象的布尔属性，Velocity 会自动
+## 调用其 getter（如 isCrud()/isTree()）取值。这里据此动态决定父类的导包。
 #if($table.crud || $table.sub)
 import com.zzyl.common.core.domain.BaseEntity;
 #elseif($table.tree)
 import com.zzyl.common.core.domain.TreeEntity;
 #end
 
+## Lombok 注解：@Data 生成 getter/setter/toString 等，故下方不再手写访问器。
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+## 类注释：${functionName}=功能名，${tableName}=表名，${author}/${datetime}=生成信息。
 /**
  * ${functionName}对象 ${tableName}
- * 
+ *
  * @author ${author}
  * @date ${datetime}
  */
+## #set：给引用赋值（无输出）。依据表类型把父类名存入变量 $Entity。
+## 注意：赋的是字符串常量，需用双引号包裹；建议 "=" 两侧留空格。
 #if($table.crud || $table.sub)
 #set($Entity="BaseEntity")
 #elseif($table.tree)
 #set($Entity="TreeEntity")
 #end
+## 类级 @Schema：Knife4j 左侧「Schemas」区展示的中文名，与功能名保持一致。
+## 注解顺序对齐参考代码：@Schema 在 Lombok 三个注解之前。
+@Schema(description = "${functionName}")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class ${ClassName} extends ${Entity}
 {
     private static final long serialVersionUID = 1L;
 
+## ===== 生成成员字段 =====
+## 遍历所有列：$columns 为列集合，$column 为当前列对象。
 #foreach ($column in $columns)
+## $table.isSuperColumn($column.javaField)：调用表对象方法，判断该字段是否属于
+## 父类公共字段（如 createBy/createTime），是则跳过，避免在子类重复生成。
+## 行首 "!" 为取反：!true => false。
 #if(!$table.isSuperColumn($column.javaField))
     /** $column.columnComment */
-#if($column.list)
-#set($parentheseIndex=$column.columnComment.indexOf("（"))
+## ---------- 计算 $comment（括号前名称，供 @Excel 与 String 示例值使用） ----------
+## #set + 方法调用：indexOf("（") 返回中文左括号的下标，未找到返回 -1。
+#set($parentheseIndex = $column.columnComment.indexOf("（"))
 #if($parentheseIndex != -1)
-#set($comment=$column.columnComment.substring(0, $parentheseIndex))
+## substring(0, 下标)：截取左括号之前的文字（如“状态（0 禁用 1 启用）” -> “状态”）。
+#set($comment = $column.columnComment.substring(0, $parentheseIndex))
 #else
-#set($comment=$column.columnComment)
+#set($comment = $column.columnComment)
 #end
+## ---------- 生成 @Schema ----------
+## $column.pk 解析为 isPk()，即“该列是否为主键”。
+## 主键：由数据库生成，文档标注 READ_ONLY，example 用占位值 "1"。
+#if($column.pk)
+    @Schema(description = "$column.columnComment", example = "1", accessMode = Schema.AccessMode.READ_ONLY)
+#elseif($parentheseIndex != -1 && $column.readConverterExp().indexOf(",") != -1)
+## 字典列：列注释形如“状态（0禁用 1启用）”（键值紧挨、空格分隔各对），
+## readConverterExp() 据此返回 "0=禁用,1=启用"。
+## 额外要求 readConverterExp() 含 ASCII 逗号（至少两对枚举）才生成 allowableValues，
+## 避免“价格（元）”这类普通括号注释被误判为字典。
+## split(",") 按逗号拆出各枚举对，split("=") 再拆出键，拼成 {"0", "1"}：
+## 拆分与拼接均为行内指令，不产生换行；$foreach.hasNext 在非末项时补分隔逗号。
+#set($expPairs = $column.readConverterExp().split(","))
+    @Schema(description = "$column.columnComment"#if($column.javaType == 'Integer' || $column.javaType == 'Long'), example = "1"#end, allowableValues = {#foreach($expPair in $expPairs)#set($expKv = $expPair.split("="))"${expKv[0]}"#if($foreach.hasNext), #end#end})
+#elseif($column.javaType == 'Date' || $column.javaType == 'LocalDateTime')
+    @Schema(description = "$column.columnComment", example = "2026-01-01 00:00:00")
+#elseif($column.javaType == 'BigDecimal')
+    @Schema(description = "$column.columnComment", example = "100.00")
+#elseif($column.javaType == 'Integer' || $column.javaType == 'Long')
+    @Schema(description = "$column.columnComment", example = "1")
+#elseif($column.javaType == 'String')
+## String 列的 example 用字段含义（括号前名称）占位，生成后可手工改成更真实的示例。
+    @Schema(description = "$column.columnComment", example = "${comment}")
+#else
+    @Schema(description = "$column.columnComment")
+#end
+## ---------- 生成 @Excel ----------
+## $column.list 表示该列是否在列表展示；为 true 时才生成 @Excel 注解。
+#if($column.list)
+## 依据 $comment 选择 @Excel 写法：
+##   含括号 → 追加 readConverterExp()，其返回枚举映射串（如 "0=禁用,1=启用"）；
+##   日期列 → 额外输出 @JsonFormat 与日期格式；
+##   其它   → 只输出字段名称。
 #if($parentheseIndex != -1)
     @Excel(name = "${comment}", readConverterExp = "$column.readConverterExp()")
-#elseif($column.javaType == 'Date')
-    @JsonFormat(pattern = "yyyy-MM-dd")
-    @Excel(name = "${comment}", width = 30, dateFormat = "yyyy-MM-dd")
+#elseif($column.javaType == 'Date' || $column.javaType == 'LocalDateTime')
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Excel(name = "${comment}", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
 #else
     @Excel(name = "${comment}")
 #end
 #end
+## $column.javaType=Java 类型，$column.javaField=属性名（小驼峰）。
     private $column.javaType $column.javaField;
 
 #end
 #end
+## 主子表场景：$table.sub 为真时，额外输出一个子表集合字段。
+## ${table.subTable.functionName} 为正式引用写法：若写成 $table.subTable.functionName列表，
+## Velocity 会把中文字符并入属性名导致解析错误，故必须用 ${} 包裹。
 #if($table.sub)
     /** $table.subTable.functionName信息 */
+    @Schema(description = "${table.subTable.functionName}列表")
     private List<${subClassName}> ${subclassName}List;
 
 #end
+#*## ===== 生成 getter / setter =====
+## 【已废弃】实体改用 Lombok @Data 生成访问器，本段模板整体以块注释保留备查：
+## 块注释内的任何指令与文本都不会被引擎解析或输出（注意：块注释内部的说明
+## 文字中严禁出现字面的“星号井号”结束符，否则块注释会在此提前终止，
+## 其后的模板内容会被当作活代码渲染——本模板曾因此踩坑，特此记录）。
+## 再次遍历列，为每个字段生成一对访问器方法。
 #foreach ($column in $columns)
 #if(!$table.isSuperColumn($column.javaField))
+## 计算用于方法名的属性名（首字母大写版本）：
+## 若字段长度>2 且第 2 个字符为大写字母，判定已是驼峰，直接用原名；
+## 否则取首字母 substring(0,1).toUpperCase() 后再拼接剩余部分。
+## .matches("[A-Z]") 为字符串方法调用，此处用正则判断是否为大写字母。
 #if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
 #set($AttrName=$column.javaField)
 #else
 #set($AttrName=$column.javaField.substring(0,1).toUpperCase() + ${column.javaField.substring(1)})
 #end
-    public void set${AttrName}($column.javaType $column.javaField) 
+    public void set${AttrName}($column.javaType $column.javaField)
     {
         this.$column.javaField = $column.javaField;
     }
 
-    public $column.javaType get${AttrName}() 
+    public $column.javaType get${AttrName}()
     {
         return $column.javaField;
     }
 
 #end
 #end
+## 主子表的集合字段 getter / setter。
 #if($table.sub)
     public List<${subClassName}> get${subClassName}List()
     {
@@ -89,6 +204,8 @@ public class ${ClassName} extends ${Entity}
     @Override
     public String toString() {
         return new ToStringBuilder(this,ToStringStyle.MULTI_LINE_STYLE)
+## toString() 中同样循环拼接每个字段的 .append(...)。
+## 注意 get${AttrName}() 与上面 #set 得到的 $AttrName 保持一致。
 #foreach ($column in $columns)
 #if($column.javaField.length() > 2 && $column.javaField.substring(1,2).matches("[A-Z]"))
 #set($AttrName=$column.javaField)
@@ -101,5 +218,6 @@ public class ${ClassName} extends ${Entity}
             .append("${subclassName}List", get${subClassName}List())
 #end
             .toString();
-    }
-}
+## 注意：块注释的结束符（星号+井号）必须与类结束右花括号写在同一行，
+## 否则结束行残留的换行会在生成的 Java 里多出一个空行。
+    }*#}

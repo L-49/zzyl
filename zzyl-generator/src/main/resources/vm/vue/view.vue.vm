@@ -1,18 +1,53 @@
+## =============================================================================
+## view.vue.vm —— 代码生成器「详情页」模板（Vue2 + Element UI，抽屉形式）
+## -----------------------------------------------------------------------------
+## 【生成物】渲染后得到一个 .vue 单文件组件：只读详情抽屉，以 label/value 形式
+##   展示各列的只读信息，字典列用 dict-tag 渲染。本文件是 Velocity 模板，不是
+##   Vue 源码：#xxx 是指令，${...}/$xxx 是引用，渲染时被替换成真实值。因此一切
+##   “说明文字”都必须写成 Velocity 注释，切勿使用行注释或 HTML 注释写说明。
+## -----------------------------------------------------------------------------
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起删除。必须独占
+##                整行——若写在有输出内容的行尾，会把该行换行吃掉，导致生成
+##                内容被拼接。本文件所有 ## 注释均独占整行。
+##   #* ... *#    多行(块)注释：可跨行，遇第一个 *# 结束（不嵌套）。
+## -----------------------------------------------------------------------------
+## 【本模板用到的 Velocity 语法】
+##   ${name} / $name        引用：输出变量、属性或方法返回值。推荐 ${} 包裹，
+##                          以免与紧随其后的字符粘连。
+##   $obj.prop              属性访问（等价于调用 getProp()）。
+##   $obj.method(...)       方法调用（如 indexOf/substring）。
+##   #set($x = 表达式)      给引用赋值，本身不产生输出。
+##   #foreach($i in $list) ... #end         遍历循环。
+##   #if(...) ... #elseif(...) ... #else ... #end   条件分支。
+##   #break                 提前结束当前 #foreach 循环。
+##   空白规则：指令独占一行（行首行尾仅有空白）时，Velocity 会连同该行换行一起
+##             删除，生成结果中不会留下多余空行；下面 dicts 那一行把多个指令压
+##             缩在同一行内，必须保持原样，且不可在该行行尾追加 ## 注释。
+## -----------------------------------------------------------------------------
+## 【与 Vue 语法并存】{{ ... }} 是 Vue 插值，与 Velocity 无关，原样保留。
+## =============================================================================
 <template>
   <el-drawer title="${functionName}详情" :visible.sync="visible" direction="rtl" size="60%" append-to-body :before-close="handleClose" custom-class="detail-drawer">
     <div v-loading="loading" class="drawer-content">
       <h4 class="section-header">基本信息</h4>
+## #set：给引用 $i 赋初值（无输出），用作换行计数（每 2 个信息项一行）。
 #set($i = 0)
+## 遍历所有列 $columns，$column 为当前列对象。
 #foreach($column in $columns)
+## #if(!$column.pk && $column.list)：跳过主键列，只展示列表列；! 为逻辑取反。
 #if(!$column.pk && $column.list)
 #set($dictType=$column.dictType)
 #set($javaField=$column.javaField)
+## 列注释常形如「名称（说明）」：indexOf("（") 定位中文左括号下标，未找到为 -1；
+## 下面据此截取括号前的纯名称存入 $comment。
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
 #if($parentheseIndex != -1)
 #set($comment=$column.columnComment.substring(0, $parentheseIndex))
 #else
 #set($comment=$column.columnComment)
 #end
+## $i % 2 == 0：每两列开始一个 <el-row> 行容器（% 为取模运算）。
 #if($i % 2 == 0)
       <el-row :gutter="20" class="mb8">
 #end
@@ -20,6 +55,7 @@
           <div class="info-item">
             <label class="info-label">${comment}：</label>
             <span class="info-value plaintext">
+## 依字典类型与 htmlType 选择渲染方式：#if/#elseif/#else 三分支，最后统一 #end。
 #if("" != $dictType)
 #if($column.htmlType == "checkbox")
               <dict-tag :options="dict.type.${dictType}" :value="info.${javaField} ? info.${javaField}.split(',') : []" />
@@ -34,12 +70,15 @@
             </span>
           </div>
         </el-col>
+## #set($i = $i + 1)：计数自增，用于控制每 2 项换行。
 #set($i = $i + 1)
+## 每满 2 列即闭合当前 <el-row> 行。
 #if($i % 2 == 0)
       </el-row>
 #end
 #end
 #end
+## 循环结束后若为奇数个信息项，补一个 </el-row> 收尾。
 #if($i % 2 != 0)
       </el-row>
 #end
@@ -48,17 +87,24 @@
 </template>
 
 <script>
+## ${BusinessName}/${moduleName}/${businessName} 均为引用，用于拼接详情接口路径。
 import { get${BusinessName} } from '@/api/${moduleName}/${businessName}'
 
 export default {
   name: '${BusinessName}ViewDrawer',
+## 遍历列判断是否存在字典列，存在则置 $hasDicts = true，并用 #break 提前跳出。
 #foreach($column in $columns)
+## "" != $column.dictType：该列配置了字典类型。
 #if("" != $column.dictType)
 #set($hasDicts = true)
 #break
 #end
 #end
+## $hasDicts 为布尔引用；为真时才输出 dicts 配置项。
 #if($hasDicts)
+## 注意：本行把多个指令(#foreach/#if/#if/#end/#end/#end)压缩在同一行内，
+## 目的仅是输出 "[...]" 数组；该行内写法不可换行，也不可行尾追加 ## 注释。
+## $foreach.hasNext 判断是否还有下一项，据此在字典项之间补 ", "。
   dicts: [#foreach($column in $columns)#if("" != $column.dictType)'${column.dictType}'#if($foreach.hasNext), #end#end#end],
 #end
   data() {
@@ -69,9 +115,11 @@ export default {
     }
   },
   methods: {
+## 打开抽屉：参数 ${pkColumn.javaField} 为主键字段名引用（形参名）。
     open(${pkColumn.javaField}) {
       this.visible = true
       this.loading = true
+## get${BusinessName} 由引用拼出接口方法名（如 getUser）。
       get${BusinessName}(${pkColumn.javaField}).then(res => {
         this.info = res.data || {}
       }).finally(() => {

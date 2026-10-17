@@ -1,7 +1,37 @@
+## =============================================================================
+## service.java.vm —— 代码生成器「Service 接口（业务层）」模板【MyBatis-Plus 版】
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是 Java 源码。它会被渲染成一个 Service
+##   接口 .java 文件：${...} 与 $xxx 会被引擎替换成真实值，#xxx 是指令。
+##   模板中一切“说明文字”都必须写成 Velocity 注释，切勿使用 // 或 /* */。
+##
+## 【本次改造：MyBatis -> MyBatis-Plus】
+##   1. 接口继承 com.baomidou.mybatisplus.extension.service.IService<实体>；
+##   2. save / getById / list / updateById / removeById / removeByIds 等通用方法
+##      由 IService 直接提供，故不再生成 selectXxxById / deleteXxxById(s)；
+##   3. 仅保留需要自定义 SQL 的业务方法：selectXxxList / insertXxx / updateXxx
+##      （主子表额外保留 deleteXxxByIds 以处理子表级联删除）。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；
+##                整行以 ## 开头时，生成结果里不会留下空行。
+##   #* ... *#    多行(块)注释：可跨行，不嵌套，遇到第一个 *# 即结束。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值。
+##                        推荐用 ${} 包裹，避免与紧随其后的字符粘连（更安全）。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   空白规则：当指令独占一行时会连同换行一起被删除（本文件仅有 #if/#end 指令行）。
+## =============================================================================
+## ${packageName}：生成器传入的包名，与固定后缀 ".service" 拼接成包声明。
 package ${packageName}.service;
 
-import java.util.List;
+## 【改造核心】引入 MyBatis-Plus 通用 Service 接口，继承它即可获得通用 CRUD 业务方法。
+import com.baomidou.mybatisplus.extension.service.IService;
 import ${packageName}.domain.${ClassName};
+
+import java.util.List;
 
 /**
  * ${functionName}Service接口
@@ -9,16 +39,12 @@ import ${packageName}.domain.${ClassName};
  * @author ${author}
  * @date ${datetime}
  */
-public interface I${ClassName}Service 
+## extends IService<${ClassName}>：关键改造点。继承后自动拥有
+##   save / saveBatch / getById / list / updateById / removeById / removeByIds 等通用方法。
+## 接口名在其前加字母 I；$pkColumn 为主键列对象：
+## $pkColumn.javaField=主键属性名(小驼峰)、$pkColumn.javaType=主键 Java 类型。
+public interface I${ClassName}Service extends IService<${ClassName}>
 {
-    /**
-     * 查询${functionName}
-     * 
-     * @param ${pkColumn.javaField} ${functionName}主键
-     * @return ${functionName}
-     */
-    public ${ClassName} select${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
-
     /**
      * 查询${functionName}列表
      * 
@@ -42,6 +68,9 @@ public interface I${ClassName}Service
      * @return 结果
      */
     public int update${ClassName}(${ClassName} ${className});
+## #if/#end：普通表删除直接用 IService 的 removeByIds；主子表需级联删除子表数据，
+## 故额外保留该自定义方法（${pkColumn.javaField}s 为主键复数形式，如 id -> ids）。
+#if($table.sub)
 
     /**
      * 批量删除${functionName}
@@ -50,12 +79,5 @@ public interface I${ClassName}Service
      * @return 结果
      */
     public int delete${ClassName}By${pkColumn.capJavaField}s(${pkColumn.javaType}[] ${pkColumn.javaField}s);
-
-    /**
-     * 删除${functionName}信息
-     * 
-     * @param ${pkColumn.javaField} ${functionName}主键
-     * @return 结果
-     */
-    public int delete${ClassName}By${pkColumn.capJavaField}(${pkColumn.javaType} ${pkColumn.javaField});
+#end
 }

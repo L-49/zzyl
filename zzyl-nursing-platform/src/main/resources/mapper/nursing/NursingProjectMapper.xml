@@ -32,10 +32,10 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </where>
     </select>
     
-    <select id="selectNursingProjectById" parameterType="Long" resultMap="NursingProjectResult">
+    <!--<select id="selectNursingProjectById" parameterType="Long" resultMap="NursingProjectResult">
         <include refid="selectNursingProjectVo"/>
         where id = #{id}
-    </select>
+    </select>-->
 
     <insert id="insertNursingProject" parameterType="NursingProject" useGeneratedKeys="true" keyProperty="id">
         insert into nursing_project
@@ -88,14 +88,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         where id = #{id}
     </update>
 
-    <delete id="deleteNursingProjectById" parameterType="Long">
+    <!--<delete id="deleteNursingProjectById" parameterType="Long">
         delete from nursing_project where id = #{id}
-    </delete>
+    </delete>-->
 
-    <delete id="deleteNursingProjectByIds" parameterType="String">
+    <!--<delete id="deleteNursingProjectByIds" parameterType="String">
         delete from nursing_project where id in 
         <foreach item="id" collection="array" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+    </delete>-->
 </mapper>

@@ -20,13 +20,16 @@ import com.zzyl.nursing.domain.NursingLevel;
 import com.zzyl.nursing.service.INursingLevelService;
 import com.zzyl.common.utils.poi.ExcelUtil;
 import com.zzyl.common.core.page.TableDataInfo;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * 护理等级Controller
- * 
+ *
  * @author lsj
  * @date 2026-10-14
  */
+@Tag(name = "护理等级管理")
 @RestController
 @RequestMapping("/nursing/level")
 public class NursingLevelController extends BaseController
@@ -37,6 +40,7 @@ public class NursingLevelController extends BaseController
     /**
      * 查询护理等级列表
      */
+    @Operation(summary = "查询护理等级列表")
     @PreAuthorize("@ss.hasPermi('nursing:level:list')")
     @GetMapping("/list")
     public TableDataInfo list(NursingLevel nursingLevel)
@@ -49,6 +53,7 @@ public class NursingLevelController extends BaseController
     /**
      * 导出护理等级列表
      */
+    @Operation(summary = "导出护理等级列表")
     @PreAuthorize("@ss.hasPermi('nursing:level:export')")
     @Log(title = "护理等级", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
@@ -62,6 +67,7 @@ public class NursingLevelController extends BaseController
     /**
      * 获取护理等级详细信息
      */
+    @Operation(summary = "获取护理等级详情")
     @PreAuthorize("@ss.hasPermi('nursing:level:query')")
     @GetMapping(value = "/{id}")
     public AjaxResult getInfo(@PathVariable("id") Long id)
@@ -72,6 +78,7 @@ public class NursingLevelController extends BaseController
     /**
      * 新增护理等级
      */
+    @Operation(summary = "新增护理等级")
     @PreAuthorize("@ss.hasPermi('nursing:level:add')")
     @Log(title = "护理等级", businessType = BusinessType.INSERT)
     @PostMapping
@@ -83,6 +90,7 @@ public class NursingLevelController extends BaseController
     /**
      * 修改护理等级
      */
+    @Operation(summary = "修改护理等级")
     @PreAuthorize("@ss.hasPermi('nursing:level:edit')")
     @Log(title = "护理等级", businessType = BusinessType.UPDATE)
     @PutMapping
@@ -94,6 +102,7 @@ public class NursingLevelController extends BaseController
     /**
      * 删除护理等级
      */
+    @Operation(summary = "删除护理等级")
     @PreAuthorize("@ss.hasPermi('nursing:level:remove')")
     @Log(title = "护理等级", businessType = BusinessType.DELETE)
 	@DeleteMapping("/{ids}")

@@ -31,6 +31,9 @@
         <jwt.version>0.9.1</jwt.version>
         <jaxb-api.version>2.3.1</jaxb-api.version>
         <springdoc.version>2.9.0</springdoc.version>
+        <lombok.version>1.18.22</lombok.version>
+        <mybatis-plus.version>3.5.10.1</mybatis-plus.version>
+        <jsqlparser.version>4.9</jsqlparser.version>
     </properties>
 
     <!-- 依赖声明 -->
@@ -175,6 +178,32 @@
                 <groupId>com.zzyl</groupId>
                 <artifactId>zzyl-nursing-platform</artifactId>
                 <version>3.9.2</version>
+            </dependency>
+
+            <!--lombok-->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+            </dependency>
+
+            <!-- MybatisPlus -->
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-boot-starter</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.baomidou</groupId>
+                <artifactId>mybatis-plus-jsqlparser</artifactId>
+                <version>${mybatis-plus.version}</version>
+            </dependency>
+
+            <!-- 强制统一 jsqlparser 版本 -->
+            <dependency>
+                <groupId>com.github.jsqlparser</groupId>
+                <artifactId>jsqlparser</artifactId>
+                <version>${jsqlparser.version}</version>
             </dependency>
 
         </dependencies>

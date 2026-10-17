@@ -1,10 +1,39 @@
+## =============================================================================
+## view.vue.vm —— 代码生成器「Vue3 详情页（抽屉）」模板
+## -----------------------------------------------------------------------------
+## 【务必理解】本文件是 Velocity 模板，不是真正的 Vue 文件。最终会被渲染成一个
+##   view.vue 详情抽屉组件：${...} 与 $xxx 会被引擎替换成真实值，#xxx 是指令。
+##   因此模板中一切“说明文字”都必须写成 Velocity 注释，否则会被原样输出进
+##   生成的 .vue。切勿用 JS 注释或 HTML 注释的写法来写说明。
+##
+## 【Velocity 注释语法】
+##   ##           单行注释：注释到本行末尾，并连同该行换行一起被删除；整行以 ##
+##                开头时，生成结果里不会留下空行。因其会吃掉换行，故 ## 只能
+##                独占整行，绝不能追加到有输出内容的行尾。
+##   #* ... *#    多行(块)注释：可跨行，块内内容不按 Velocity 解析。
+##
+## 【本模板涉及的 Velocity 语法】
+##   ${name} / $name      引用(Reference)：输出变量、属性或方法返回值；推荐用
+##                        ${} 包裹，避免与紧随其后的字符粘连。
+##   $obj.prop            属性访问（等价于调用 getProp()）。
+##   $obj.method(参数)    方法调用，返回值参与输出（如 $dicts.replace(..)）。
+##   #set($x = 表达式)    定义或给引用赋值（本身不产生任何输出）。
+##   #foreach($i in $list) ... #end    遍历循环。
+##   #if(条件) ... #elseif(条件) ... #else ... #end   条件分支。
+##   空白规则：指令独占一行（行首行尾仅空白）时，Velocity 会连同该行换行一起
+##             删除，所以生成的 view.vue 里不会出现多余空行。
+## =============================================================================
 <template>
+## ${functionName} 为功能名引用，用于抽屉标题与提示文案。
   <el-drawer title="${functionName}详情" v-model="visible" direction="rtl" size="60%" append-to-body :before-close="handleClose" class="detail-drawer">
     <div v-loading="loading" class="drawer-content">
       <h4 class="section-header">基本信息</h4>
+## #set($i = 0)：初始化计数器 $i，供后续按奇偶决定「每行两列」。
 #set($i = 0)
+## 遍历列，仅处理「非主键且需列表展示」的列。
 #foreach($column in $columns)
 #if(!$column.pk && $column.list)
+## #set 依次取出字典类型、字段名与去掉中文括号的注释。
 #set($dictType=$column.dictType)
 #set($javaField=$column.javaField)
 #set($parentheseIndex=$column.columnComment.indexOf("（"))
@@ -13,6 +42,7 @@
 #else
 #set($comment=$column.columnComment)
 #end
+## #if：$i 为偶数时开启一行 el-row（每行放两列）。
 #if($i % 2 == 0)
       <el-row :gutter="20" class="mb8">
 #end
@@ -20,6 +50,7 @@
           <div class="info-item">
             <label class="info-label">${comment}：</label>
             <span class="info-value plaintext">
+## 依字典/日期/图片/普通文本选择展示方式（#if / #elseif / #else / #end）。
 #if("" != $dictType)
 #if($column.htmlType == "checkbox")
               <dict-tag :options="${dictType}" :value="info.${javaField} ? info.${javaField}.split(',') : []" />
@@ -36,12 +67,14 @@
             </span>
           </div>
         </el-col>
+## #set：$i 自增 1；自增后为偶数则闭合当前行。
 #set($i = $i + 1)
 #if($i % 2 == 0)
       </el-row>
 #end
 #end
 #end
+## 若末尾剩余单数列（$i 为奇数），补一个闭合标签。
 #if($i % 2 != 0)
       </el-row>
 #end
@@ -49,9 +82,12 @@
   </el-drawer>
 </template>
 
+## ===== 以下进入 <script setup>，Velocity 指令同样生效 =====
 <script setup name="${BusinessName}ViewDrawer">
 import { get${BusinessName} } from '@/api/${moduleName}/${businessName}'
 
+## ${dicts} 为字典变量名清单字符串；非空时用 useDict 解构出各字典引用。
+## $dicts.replace(..) 为字符串方法调用：去掉其中的单引号得到变量名。
 #if(${dicts} != '')
 #set($dictsNoSymbol=$dicts.replace("'", ""))
 const { ${dictsNoSymbol} } = useDict(${dicts})
@@ -61,10 +97,12 @@ const visible = ref(false)
 const loading = ref(false)
 const info = reactive({})
 
+## ${pkColumn.javaField} 为主键字段名，作为 open() 的入参。
 const open = async (${pkColumn.javaField}) => {
   visible.value = true
   loading.value = true
   try {
+## ${BusinessName} 为大驼峰业务名，拼成接口函数名。
     const res = await get${BusinessName}(${pkColumn.javaField})
     Object.assign(info, res.data || {})
   } catch (error) {
